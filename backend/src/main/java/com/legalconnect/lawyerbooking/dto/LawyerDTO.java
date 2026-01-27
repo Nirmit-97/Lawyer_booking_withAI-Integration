@@ -1,5 +1,8 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
+import java.util.Set;
+
 /**
  * Data Transfer Object for Lawyer information.
  * 
@@ -9,8 +12,7 @@ package com.legalconnect.lawyerbooking.dto;
 public class LawyerDTO {
     private Long id;
     private String fullName;
-    private String specialization;
-    private String specializations;
+    private Set<CaseType> specializations;
     private Integer yearsOfExperience;
     private Double rating;
     private Integer completedCasesCount;
@@ -42,19 +44,11 @@ public class LawyerDTO {
         this.fullName = fullName;
     }
     
-    public String getSpecialization() {
-        return specialization;
-    }
-    
-    public void setSpecialization(String specialization) {
-        this.specialization = specialization;
-    }
-    
-    public String getSpecializations() {
+    public Set<CaseType> getSpecializations() {
         return specializations;
     }
     
-    public void setSpecializations(String specializations) {
+    public void setSpecializations(Set<CaseType> specializations) {
         this.specializations = specializations;
     }
     

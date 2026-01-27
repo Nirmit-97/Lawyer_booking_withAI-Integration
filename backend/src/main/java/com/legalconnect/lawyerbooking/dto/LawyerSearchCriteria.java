@@ -1,7 +1,9 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
+
 public class LawyerSearchCriteria {
-    private String specialization;
+    private CaseType specialization;
     private Double minRating;
     private Integer minExperience;
     private Integer minCompletedCases;
@@ -9,8 +11,8 @@ public class LawyerSearchCriteria {
     private String name;
 
     // Getters and Setters
-    public String getSpecialization() { return specialization; }
-    public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public CaseType getSpecialization() { return specialization; }
+    public void setSpecialization(CaseType specialization) { this.specialization = specialization; }
 
     public Double getMinRating() { return minRating; }
     public void setMinRating(Double minRating) { this.minRating = minRating; }

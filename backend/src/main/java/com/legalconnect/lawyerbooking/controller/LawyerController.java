@@ -27,7 +27,6 @@ public class LawyerController {
         LawyerProfileDTO dto = new LawyerProfileDTO(
                 lawyer.getId(),
                 lawyer.getFullName(),
-                lawyer.getSpecialization(),
                 lawyer.getSpecializations(),
                 lawyer.getYearsOfExperience(),
                 lawyer.getLanguagesKnown(),
@@ -50,22 +49,23 @@ public class LawyerController {
                 .orElseThrow(() -> new ResourceNotFoundException("Lawyer not found with ID: " + lawyerId));
 
         // Update fields
-        lawyer.setFullName(profileDTO.getFullName());
-        lawyer.setSpecialization(profileDTO.getSpecialization());
-        lawyer.setSpecializations(profileDTO.getSpecializations());
-        lawyer.setYearsOfExperience(profileDTO.getYearsOfExperience());
-        lawyer.setLanguagesKnown(profileDTO.getLanguagesKnown());
-        lawyer.setAvailabilityInfo(profileDTO.getAvailabilityInfo());
-        lawyer.setEmail(profileDTO.getEmail());
-        lawyer.setProfilePhotoUrl(profileDTO.getProfilePhotoUrl());
-        lawyer.setBarNumber(profileDTO.getBarNumber());
+        if (profileDTO.getFullName() != null) lawyer.setFullName(profileDTO.getFullName());
+        if (profileDTO.getSpecializations() != null) {
+            lawyer.setSpecializations(profileDTO.getSpecializations());
+        }
+
+        if (profileDTO.getYearsOfExperience() != null) lawyer.setYearsOfExperience(profileDTO.getYearsOfExperience());
+        if (profileDTO.getLanguagesKnown() != null) lawyer.setLanguagesKnown(profileDTO.getLanguagesKnown());
+        if (profileDTO.getAvailabilityInfo() != null) lawyer.setAvailabilityInfo(profileDTO.getAvailabilityInfo());
+        if (profileDTO.getEmail() != null) lawyer.setEmail(profileDTO.getEmail());
+        if (profileDTO.getProfilePhotoUrl() != null) lawyer.setProfilePhotoUrl(profileDTO.getProfilePhotoUrl());
+        if (profileDTO.getBarNumber() != null) lawyer.setBarNumber(profileDTO.getBarNumber());
 
         Lawyer savedLawyer = lawyerRepository.save(lawyer);
 
         LawyerProfileDTO responseDTO = new LawyerProfileDTO(
                 savedLawyer.getId(),
                 savedLawyer.getFullName(),
-                savedLawyer.getSpecialization(),
                 savedLawyer.getSpecializations(),
                 savedLawyer.getYearsOfExperience(),
                 savedLawyer.getLanguagesKnown(),

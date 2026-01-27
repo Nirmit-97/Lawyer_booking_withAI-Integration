@@ -30,6 +30,12 @@ public class AudioController {
     private com.legalconnect.lawyerbooking.service.CaseService caseService;
 
     @Autowired
+    private com.legalconnect.lawyerbooking.service.AuthorizationService authorizationService;
+
+    @Autowired
+    private com.legalconnect.lawyerbooking.repository.LawyerRepository lawyerRepository;
+
+    @Autowired
     private com.legalconnect.lawyerbooking.service.RateLimitService rateLimitService;
 
     @PostMapping("/upload")
@@ -108,37 +114,40 @@ public class AudioController {
 
     @GetMapping("/all")
     public ResponseEntity<List<ClientAudioDTO>> getAllRecords() {
-        List<ClientAudio> records = repository.findAll();
-        System.out.println("Fetching all records, count: " + records.size());
+        com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
+        String role = currentUser.getRole();
+        Long userId = currentUser.getUserId();
+
+        List<ClientAudioDTO> records;
+        if ("admin".equalsIgnoreCase(role)) {
+            records = audioService.getAllAudioForAdmin();
+        } else if ("lawyer".equalsIgnoreCase(role)) {
+            records = audioService.getAudioForLawyer(userId);
+        } else if ("user".equalsIgnoreCase(role)) {
+            records = audioService.getAudioForUser(userId);
+        } else {
+            return ResponseEntity.status(401).build();
+        }
         
-        List<ClientAudioDTO> dtos = records.stream()
-            .map(record -> {
-                System.out.println("Processing record ID: " + record.getId() + 
-                    ", English masked audio: " + (record.getMaskedTextAudio() != null ? 
-                        record.getMaskedTextAudio().length + " bytes" : "null") +
-                    ", Gujarati masked audio: " + (record.getMaskedGujaratiAudio() != null ? 
-                        record.getMaskedGujaratiAudio().length + " bytes" : "null"));
-                return new ClientAudioDTO(
-                    record.getId(),
-                    record.getLanguage(),
-                    record.getOriginalEnglishText(),
-                    record.getMaskedEnglishText(),
-                    record.getMaskedTextAudio(),
-                    record.getMaskedGujaratiText(),
-                    record.getMaskedGujaratiAudio(),
-                    record.getUserId(),
-                    record.getCaseId(),
-                    record.getLawyerId()
-                );
-            })
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        System.out.println("Fetching all records for " + role + ", count: " + records.size());
+        return ResponseEntity.ok(records);
     }
     
     @GetMapping("/{id}")
     public ResponseEntity<ClientAudioDTO> getRecordById(@PathVariable Long id) {
         ClientAudio record = repository.findById(id)
             .orElseThrow(() -> new RuntimeException("Record not found with id: " + id));
+        
+        // STRICT SECURITY: Validate access using AuthorizationService
+        if (record.getCaseId() != null) {
+            authorizationService.verifyCaseAccess(record.getCaseId());
+        } else {
+            // If audio is not linked to a case, check if the current user owns it
+            com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
+            if ("user".equalsIgnoreCase(currentUser.getRole()) && !record.getUserId().equals(currentUser.getUserId())) {
+                throw new com.legalconnect.lawyerbooking.exception.UnauthorizedException("Access denied to this audio record");
+            }
+        }
         
         System.out.println("Fetching record ID: " + id + 
             ", English masked audio: " + (record.getMaskedTextAudio() != null ? 

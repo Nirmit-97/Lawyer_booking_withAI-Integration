@@ -76,9 +76,17 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findByLawyerIdAndStatusOrderByAppointmentDateAsc(Long lawyerId, String status);
     
     @Deprecated
+    @Query("SELECT a FROM Appointment a WHERE a.userId = :userId " +
+           "AND a.appointmentDate >= :now " +
+           "AND a.status != 'cancelled' " +
+           "ORDER BY a.appointmentDate ASC")
     List<Appointment> findUpcomingByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now);
     
     @Deprecated
+    @Query("SELECT a FROM Appointment a WHERE a.lawyerId = :lawyerId " +
+           "AND a.appointmentDate >= :now " +
+           "AND a.status != 'cancelled' " +
+           "ORDER BY a.appointmentDate ASC")
     List<Appointment> findUpcomingByLawyerId(@Param("lawyerId") Long lawyerId, @Param("now") LocalDateTime now);
     
     // OPTIMIZED QUERY METHODS

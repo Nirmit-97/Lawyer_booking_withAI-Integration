@@ -1,5 +1,7 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseStatus;
+import com.legalconnect.lawyerbooking.enums.CaseType;
 import java.time.LocalDateTime;
 
 public class CaseDTO {
@@ -7,10 +9,9 @@ public class CaseDTO {
     private Long userId;
     private Long lawyerId;
     private String caseTitle;
-    private String caseType;
-    private String caseStatus;
+    private CaseType caseType;
+    private CaseStatus caseStatus;
     private String description;
-    private String caseCategory;
     private String solution;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -19,8 +20,8 @@ public class CaseDTO {
     public CaseDTO() {}
 
     public CaseDTO(Long id, Long userId, Long lawyerId, String caseTitle,
-                   String caseType, String caseStatus, String description, 
-                   String caseCategory, String solution, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   CaseType caseType, CaseStatus caseStatus, String description, 
+                   String solution, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.lawyerId = lawyerId;
@@ -28,7 +29,6 @@ public class CaseDTO {
         this.caseType = caseType;
         this.caseStatus = caseStatus;
         this.description = description;
-        this.caseCategory = caseCategory;
         this.solution = solution;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -67,19 +67,34 @@ public class CaseDTO {
         this.caseTitle = caseTitle;
     }
 
-    public String getCaseType() {
+    public CaseType getCaseType() {
         return caseType;
     }
 
-    public void setCaseType(String caseType) {
+    public void setCaseType(CaseType caseType) {
         this.caseType = caseType;
     }
 
-    public String getCaseStatus() {
+    // Alias for frontend compatibility (CaseList.js expects caseCategory)
+    public String getCaseCategory() {
+        return caseType != null ? caseType.name() : null;
+    }
+
+    public void setCaseCategory(String category) {
+        if (category != null) {
+            try {
+                this.caseType = CaseType.valueOf(category.trim().toUpperCase().replace(" ", "_"));
+            } catch (Exception e) {
+                this.caseType = CaseType.OTHER;
+            }
+        }
+    }
+
+    public CaseStatus getCaseStatus() {
         return caseStatus;
     }
 
-    public void setCaseStatus(String caseStatus) {
+    public void setCaseStatus(CaseStatus caseStatus) {
         this.caseStatus = caseStatus;
     }
 
@@ -99,13 +114,6 @@ public class CaseDTO {
         this.solution = solution;
     }
 
-    public String getCaseCategory() {
-        return caseCategory;
-    }
-
-    public void setCaseCategory(String caseCategory) {
-        this.caseCategory = caseCategory;
-    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

@@ -1,23 +1,22 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
 import java.io.Serializable;
 
 public class LawyerCaseRequest implements Serializable {
     private Long caseId;
     private String title;
-    private String category;
-    private String type;
+    private CaseType caseType;
     private String description;
     private Long userId;
     private String createdAt;
 
     public LawyerCaseRequest() {}
 
-    public LawyerCaseRequest(Long caseId, String title, String category, String type, String description, Long userId) {
+    public LawyerCaseRequest(Long caseId, String title, CaseType caseType, String description, Long userId) {
         this.caseId = caseId;
         this.title = title;
-        this.category = category;
-        this.type = type;
+        this.caseType = caseType;
         this.description = description;
         this.userId = userId;
         this.createdAt = java.time.LocalDateTime.now().toString();
@@ -29,11 +28,8 @@ public class LawyerCaseRequest implements Serializable {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public CaseType getCaseType() { return caseType; }
+    public void setCaseType(CaseType caseType) { this.caseType = caseType; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

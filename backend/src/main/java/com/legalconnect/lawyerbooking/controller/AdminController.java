@@ -18,6 +18,7 @@ import com.legalconnect.lawyerbooking.entity.User;
 import com.legalconnect.lawyerbooking.entity.Lawyer;
 import com.legalconnect.lawyerbooking.entity.Case;
 import com.legalconnect.lawyerbooking.service.PasswordService;
+import com.legalconnect.lawyerbooking.dto.CaseDTO;
 import com.legalconnect.lawyerbooking.util.JwtUtil;
 
 import java.util.Optional;
@@ -38,6 +39,9 @@ public class AdminController {
 
     @Autowired
     private LawyerRepository lawyerRepository;
+
+    @Autowired
+    private com.legalconnect.lawyerbooking.service.CaseService caseService;
 
     @Autowired
     private CaseRepository caseRepository;
@@ -75,7 +79,7 @@ public class AdminController {
             }
 
             if (passwordValid) {
-                String token = jwtUtil.generateToken(admin.getId(), admin.getUsername(), "admin");
+                String token = jwtUtil.generateToken(admin.getId(), admin.getUsername(), com.legalconnect.lawyerbooking.enums.Role.ADMIN);
 
                 LoginResponse response = new LoginResponse(true, "Login successful");
                 response.setUserType("admin");
@@ -104,7 +108,7 @@ public class AdminController {
             
             long totalUsers = userRepository.count();
             long totalLawyers = lawyerRepository.count();
-            long totalCases = caseRepository.count();
+            long totalCases = caseRepository.countByDeletedFalse();
             
             stats.put("totalUsers", totalUsers);
             stats.put("totalLawyers", totalLawyers);
@@ -219,7 +223,12 @@ public class AdminController {
             Lawyer lawyer = lawyerOpt.get();
             if (lawyerUpdate.getFullName() != null) lawyer.setFullName(lawyerUpdate.getFullName());
             if (lawyerUpdate.getEmail() != null) lawyer.setEmail(lawyerUpdate.getEmail());
-            if (lawyerUpdate.getSpecialization() != null) lawyer.setSpecialization(lawyerUpdate.getSpecialization());
+            
+            // Handle specialization update 
+            if (lawyerUpdate.getSpecializations() != null && !lawyerUpdate.getSpecializations().isEmpty()) {
+                lawyer.setSpecializations(lawyerUpdate.getSpecializations());
+            }
+            
             if (lawyerUpdate.getBarNumber() != null) lawyer.setBarNumber(lawyerUpdate.getBarNumber());
             
             Lawyer savedLawyer = lawyerRepository.save(lawyer);
@@ -247,12 +256,20 @@ public class AdminController {
 
     // Get All Cases
     @GetMapping("/cases")
-    public ResponseEntity<Page<Case>> getAllCases(
+    public ResponseEntity<Page<CaseDTO>> getAllCases(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
-            Page<Case> cases = caseRepository.findAll(pageable);
+            List<CaseDTO> casesList = caseService.getAllCasesForAdmin();
+            // Since getAllCasesForAdmin returns a List, we'll wrap it in a Page if needed, 
+            // but the original logic was findAll(pageable). Let's keep it simple for now 
+            // or adapt the service to accept pageable.
+            // For now, let's just return the list as a Page container as expected by frontend.
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), casesList.size());
+            Page<CaseDTO> cases = new org.springframework.data.domain.PageImpl<>(
+                casesList.subList(start, end), pageable, casesList.size());
             return ResponseEntity.ok(cases);
         } catch (Exception e) {
             System.err.println("Error fetching cases: " + e.getMessage());
@@ -262,10 +279,11 @@ public class AdminController {
 
     // Get Case by ID
     @GetMapping("/cases/{id}")
-    public ResponseEntity<Case> getCaseById(@PathVariable Long id) {
+    public ResponseEntity<CaseDTO> getCaseById(@PathVariable Long id) {
         try {
-            Optional<Case> caseEntity = caseRepository.findById(id);
-            return caseEntity.map(ResponseEntity::ok)
+            return caseRepository.findById(id)
+                            .map(caseService::convertToDTO)
+                            .map(ResponseEntity::ok)
                             .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);
@@ -274,7 +292,7 @@ public class AdminController {
 
     // Update Case
     @PutMapping("/cases/{id}")
-    public ResponseEntity<Case> updateCase(@PathVariable Long id, @RequestBody Case caseUpdate) {
+    public ResponseEntity<CaseDTO> updateCase(@PathVariable Long id, @RequestBody Case caseUpdate) {
         try {
             Optional<Case> caseOpt = caseRepository.findById(id);
             if (caseOpt.isEmpty()) {
@@ -284,11 +302,15 @@ public class AdminController {
             Case caseEntity = caseOpt.get();
             if (caseUpdate.getCaseTitle() != null) caseEntity.setCaseTitle(caseUpdate.getCaseTitle());
             if (caseUpdate.getCaseStatus() != null) caseEntity.setCaseStatus(caseUpdate.getCaseStatus());
-            if (caseUpdate.getCaseCategory() != null) caseEntity.setCaseCategory(caseUpdate.getCaseCategory());
+            
+            // Map string update to Enum
+            if (caseUpdate.getCaseType() != null) {
+                caseEntity.setCaseType(caseUpdate.getCaseType());
+            }
             if (caseUpdate.getDescription() != null) caseEntity.setDescription(caseUpdate.getDescription());
             
             Case savedCase = caseRepository.save(caseEntity);
-            return ResponseEntity.ok(savedCase);
+            return ResponseEntity.ok(caseService.convertToDTO(savedCase));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);
         }
@@ -296,7 +318,7 @@ public class AdminController {
 
     // Reassign Case
     @PutMapping("/cases/{id}/reassign")
-    public ResponseEntity<Case> reassignCase(@PathVariable Long id, @RequestBody Map<String, Long> request) {
+    public ResponseEntity<CaseDTO> reassignCase(@PathVariable Long id, @RequestBody Map<String, Long> request) {
         try {
             Optional<Case> caseOpt = caseRepository.findById(id);
             if (caseOpt.isEmpty()) {
@@ -309,7 +331,7 @@ public class AdminController {
             if (newLawyerId != null && lawyerRepository.existsById(newLawyerId)) {
                 caseEntity.setLawyerId(newLawyerId);
                 Case savedCase = caseRepository.save(caseEntity);
-                return ResponseEntity.ok(savedCase);
+                return ResponseEntity.ok(caseService.convertToDTO(savedCase));
             } else {
                 return ResponseEntity.badRequest().body(null);
             }
@@ -325,11 +347,14 @@ public class AdminController {
             if (!caseRepository.existsById(id)) {
                 return ResponseEntity.notFound().build();
             }
-            caseRepository.deleteById(id);
+            // Use service for soft delete and broadcast
+            caseService.deleteCase(id);
+            
             Map<String, String> response = new HashMap<>();
             response.put("message", "Case deleted successfully");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("Error deleting case: " + e.getMessage());
             return ResponseEntity.status(500).body(null);
         }
     }

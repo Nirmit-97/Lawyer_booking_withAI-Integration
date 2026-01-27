@@ -30,6 +30,16 @@ public class OpenAIWhisperService {
             .build();
     
     private final ObjectMapper mapper = new ObjectMapper();
+    
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            logger.error("CRITICAL: OpenAI API Key is NULL or EMPTY in OpenAIWhisperService!");
+        } else {
+            String masked = apiKey.length() > 10 ? apiKey.substring(0, 10) + "..." : "***";
+            logger.info("OpenAIWhisperService initialized with key: {}", masked);
+        }
+    }
 
     // ================= Gujarati Audio → English Text =================
     public String translateToEnglish(MultipartFile file) throws Exception {

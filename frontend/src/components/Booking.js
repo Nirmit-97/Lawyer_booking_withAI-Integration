@@ -3,10 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { getAuthHeaders } from '../utils/auth';
+import api from '../utils/api';
 import './Booking.css';
-
-const API_BASE_URL = 'http://localhost:8080/api';
 
 function Booking({ userId, onBookingSuccess }) {
   const [lawyers, setLawyers] = useState([]);
@@ -29,24 +27,13 @@ function Booking({ userId, onBookingSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/lawyers`);
-      if (response.ok) {
-        const data = await response.json();
-        setLawyers(Array.isArray(data) ? data : []);
-        setError(''); // Clear any previous errors
-      } else {
-        const errorMsg = 'Error loading lawyers: Unable to connect to server';
-        setError(errorMsg);
-        toast.error(errorMsg);
-        setLawyers([]);
-      }
+      const response = await api.get('/bookings/lawyers');
+      setLawyers(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching lawyers:', err);
-      const errorMsg = err.message.includes('fetch')
-        ? 'Error loading lawyers: Cannot connect to server. Please ensure the backend is running on http://localhost:8080'
-        : 'Error loading lawyers: ' + err.message;
+      const errorMsg = 'Error loading lawyers: Unable to connect to server';
       setError(errorMsg);
-      toast.error('Error loading lawyers');
+      toast.error(errorMsg);
       setLawyers([]);
     } finally {
       setLoading(false);
@@ -87,18 +74,13 @@ function Booking({ userId, onBookingSuccess }) {
         description: formData.description
       };
 
-      const response = await fetch(`${API_BASE_URL}/bookings/create`, {
-        method: 'POST',
+      const response = await api.post('/bookings/create', requestBody, {
         headers: {
-          ...getAuthHeaders(),
           'X-User-Id': userId.toString()
-        },
-        body: JSON.stringify(requestBody)
+        }
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         toast.success('Appointment booked successfully!');
         setFormData({
           lawyerId: '',
@@ -112,7 +94,7 @@ function Booking({ userId, onBookingSuccess }) {
           onBookingSuccess();
         }
       } else {
-        const errorMsg = data.message || 'Failed to book appointment';
+        const errorMsg = response.data.message || 'Failed to book appointment';
         setError(errorMsg);
         toast.error(errorMsg);
       }

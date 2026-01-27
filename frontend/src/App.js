@@ -13,24 +13,48 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <ToastContainer />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/user-login" element={<UserLogin />} />
-          <Route path="/user-register" element={<UserRegistration />} />
-          <Route path="/lawyer-login" element={<LawyerLogin />} />
-          <Route path="/user-dashboard" element={<UserDashboard />} />
-          <Route path="/lawyer-dashboard" element={<LawyerDashboard />} />
-          <Route path="/lawyer/:id" element={<LawyerProfile />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Routes>
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <ToastContainer />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/user-login" element={<UserLogin />} />
+            <Route path="/user-register" element={<UserRegistration />} />
+            <Route path="/lawyer-login" element={<LawyerLogin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+
+            {/* Protected User Routes */}
+            <Route path="/user-dashboard" element={
+              <ProtectedRoute allowedRoles={['user']}>
+                <UserDashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* Protected Lawyer Routes */}
+            <Route path="/lawyer-dashboard" element={
+              <ProtectedRoute allowedRoles={['lawyer']}>
+                <LawyerDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/lawyer/:id" element={<LawyerProfile />} /> {/* Profile might be public-viewable but edit-protected? For now keeping it simple. */}
+
+            {/* Protected Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 

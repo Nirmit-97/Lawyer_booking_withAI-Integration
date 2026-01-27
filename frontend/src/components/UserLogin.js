@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { setToken } from '../utils/auth';
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
 import './Login.css';
-
-const API_BASE_URL = 'http://localhost:8080/api/auth';
 
 function UserLogin() {
   const [username, setUsername] = useState('');
@@ -12,14 +11,12 @@ function UserLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    // Ensure we start with a clean slate
-    removeToken();
 
     if (!username || !password) {
       setError('Please enter both username and password');
@@ -28,33 +25,19 @@ function UserLogin() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/user/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+      const response = await api.post('/auth/user/login', { username, password });
+      const data = response.data;
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse response as JSON:', jsonError);
-        setError('Server returned an invalid response. Please try again.');
-        setLoading(false);
-        return;
-      }
+      if (data.success) {
+        const userData = {
+          username: data.username || username,
+          fullName: data.fullName || '',
+          id: data.id || ''
+        };
+        const token = data.token || '';
 
-      if (response.ok && data.success) {
-        // Store JWT token and user session
-        if (data.token) {
-          setToken(data.token);
-        }
-        localStorage.setItem('userType', 'user');
-        localStorage.setItem('username', data.username || username);
-        localStorage.setItem('fullName', data.fullName || '');
-        localStorage.setItem('userId', data.id || '');
+        login('user', token, userData);
+
         toast.success('Login successful!');
         navigate('/user-dashboard');
       } else {
@@ -64,7 +47,9 @@ function UserLogin() {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Error connecting to server. Please make sure the backend is running on http://localhost:8080');
+      const errorMsg = err.response?.data?.message || 'Error connecting to server. Please try again later.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,7 @@
 package com.legalconnect.lawyerbooking.entity;
 
+import com.legalconnect.lawyerbooking.enums.CaseStatus;
+import com.legalconnect.lawyerbooking.enums.CaseType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -20,14 +22,16 @@ public class Case {
     @Column(name = "case_title", nullable = false, length = 255)
     private String caseTitle;
 
-    @Column(name = "case_type", length = 100)
-    private String caseType;
+    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseTypeConverter.class)
+    @Column(name = "case_type", length = 50)
+    private CaseType caseType;
 
     @Column(name = "case_status", length = 50)
-    private String caseStatus = "open"; // open, in-progress, closed, on-hold
+    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseStatusConverter.class)
+    private CaseStatus caseStatus = CaseStatus.OPEN; 
 
-    @Column(name = "case_category", length = 100)
-    private String caseCategory; // e.g., Family Law, Criminal Law, Civil Law
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
 
     @Lob
     @Column(name = "description", columnDefinition = "LONGTEXT")
@@ -47,7 +51,7 @@ public class Case {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (caseStatus == null) {
-            caseStatus = "open";
+            caseStatus = CaseStatus.OPEN;
         }
     }
 
@@ -89,20 +93,28 @@ public class Case {
         this.caseTitle = caseTitle;
     }
 
-    public String getCaseType() {
+    public CaseType getCaseType() {
         return caseType;
     }
 
-    public void setCaseType(String caseType) {
+    public void setCaseType(CaseType caseType) {
         this.caseType = caseType;
     }
 
-    public String getCaseStatus() {
+    public CaseStatus getCaseStatus() {
         return caseStatus;
     }
 
-    public void setCaseStatus(String caseStatus) {
+    public void setCaseStatus(CaseStatus caseStatus) {
         this.caseStatus = caseStatus;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 
     public String getDescription() {
@@ -111,14 +123,6 @@ public class Case {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public String getCaseCategory() {
-        return caseCategory;
-    }
-
-    public void setCaseCategory(String caseCategory) {
-        this.caseCategory = caseCategory;
     }
 
     public String getSolution() {

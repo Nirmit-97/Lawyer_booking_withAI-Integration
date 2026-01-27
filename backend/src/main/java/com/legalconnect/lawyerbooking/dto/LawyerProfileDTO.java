@@ -1,10 +1,15 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.legalconnect.lawyerbooking.enums.CaseType;
+import java.util.Set;
+
 public class LawyerProfileDTO {
     private Long id;
     private String fullName;
-    private String specialization;
-    private String specializations;
+    
+    @JsonDeserialize(using = SpecializationsDeserializer.class)
+    private Set<CaseType> specializations;
     private Integer yearsOfExperience;
     private String languagesKnown;
     private Double rating;
@@ -16,13 +21,12 @@ public class LawyerProfileDTO {
 
     public LawyerProfileDTO() {}
 
-    public LawyerProfileDTO(Long id, String fullName, String specialization, String specializations,
+    public LawyerProfileDTO(Long id, String fullName, Set<CaseType> specializations,
                             Integer yearsOfExperience, String languagesKnown, Double rating,
                             Integer completedCasesCount, String profilePhotoUrl, String availabilityInfo,
                             String barNumber, String email) {
         this.id = id;
         this.fullName = fullName;
-        this.specialization = specialization;
         this.specializations = specializations;
         this.yearsOfExperience = yearsOfExperience;
         this.languagesKnown = languagesKnown;
@@ -41,11 +45,21 @@ public class LawyerProfileDTO {
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
 
-    public String getSpecialization() { return specialization; }
-    public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public Set<CaseType> getSpecializations() {
+        return specializations;
+    }
 
-    public String getSpecializations() { return specializations; }
-    public void setSpecializations(String specializations) { this.specializations = specializations; }
+    public void setSpecializations(Set<CaseType> specializations) {
+        this.specializations = specializations;
+    }
+
+    // Alias for frontend compatibility (some parts expect a singular string)
+    public String getSpecialization() {
+        if (specializations == null || specializations.isEmpty()) return "General Practice";
+        return specializations.stream()
+                .map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
 
     public Integer getYearsOfExperience() { return yearsOfExperience; }
     public void setYearsOfExperience(Integer yearsOfExperience) { this.yearsOfExperience = yearsOfExperience; }

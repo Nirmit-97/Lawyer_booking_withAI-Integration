@@ -1,6 +1,10 @@
+
 package com.legalconnect.lawyerbooking.filter;
 
 import com.legalconnect.lawyerbooking.util.JwtUtil;
+import com.legalconnect.lawyerbooking.repository.UserRepository;
+import com.legalconnect.lawyerbooking.repository.LawyerRepository;
+import com.legalconnect.lawyerbooking.repository.AdminRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,38 +26,75 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private LawyerRepository lawyerRepository;
+
+    @Autowired
+    private AdminRepository adminRepository;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
         final String requestTokenHeader = request.getHeader("Authorization");
 
+        // HEARTBEAT LOG: Keep this for debugging persistent 401s
+        if (logger.isInfoEnabled()) {
+            logger.info("FILTER HEARTBEAT: Processing request " + request.getMethod() + " " + request.getRequestURI());
+        }
+
         String username = null;
         String jwtToken = null;
-        String userType = null;
+        String role = null;
         Long userId = null;
 
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
-            jwtToken = requestTokenHeader.substring(7);
+            jwtToken = requestTokenHeader.substring(7).trim(); // Added .trim() for robustness
             try {
                 username = jwtUtil.extractUsername(jwtToken);
-                userType = jwtUtil.extractUserType(jwtToken);
+                role = jwtUtil.extractRole(jwtToken);
                 userId = jwtUtil.extractUserId(jwtToken);
             } catch (Exception e) {
-                logger.error("JWT Token parsing failed: " + e.getMessage());
+                logger.warn("JWT Token parsing failed: " + e.getMessage());
             }
         }
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                if (jwtUtil.validateToken(jwtToken, username)) {
-                    com.legalconnect.lawyerbooking.security.UserPrincipal principal = 
-                        new com.legalconnect.lawyerbooking.security.UserPrincipal(userId, username, userType);
-                    
-                    if (logger.isInfoEnabled()) {
-                        logger.info("JWT Filter: Authenticated user " + username + " (ID: " + userId + ") with type " + userType);
-                    }
+        // Overwrite AnonymousAuthenticationToken if a valid username is extracted
+        org.springframework.security.core.Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAnonymous = currentAuth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken;
 
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + userType.toUpperCase());
+        if (username != null && (currentAuth == null || isAnonymous)) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Validating token for user: " + username + " with role: " + role);
+            }
+            
+            if (jwtUtil.validateToken(jwtToken, username)) {
+                
+                // CRITICAL: Database check to ensure user still exists and isn't deleted/banned
+                boolean userExists = false;
+                
+                try {
+                    if ("USER".equals(role)) {
+                        userExists = userRepository.existsById(userId);
+                    } else if ("LAWYER".equals(role)) {
+                        userExists = lawyerRepository.existsById(userId);
+                    } else if ("ADMIN".equals(role)) {
+                        userExists = adminRepository.existsById(userId);
+                    } else {
+                        logger.warn("Unknown role: " + role + " for user: " + username);
+                    }
+                } catch (Exception e) {
+                    logger.error("Database check failed for user: " + username + " (ID: " + userId + "). Error: " + e.getMessage());
+                }
+                
+                if (userExists) {
+                    com.legalconnect.lawyerbooking.security.UserPrincipal principal = 
+                        new com.legalconnect.lawyerbooking.security.UserPrincipal(userId, username, role);
+                    
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
                     
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             principal, null, Collections.singletonList(authority));
@@ -62,11 +103,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     
                     request.setAttribute("userId", userId);
-                    request.setAttribute("userType", userType);
+                    request.setAttribute("role", role);
+                    
+                    logger.info("Successfully authenticated user: " + username + " [Role: " + role + "]");
                 } else {
-                    logger.warn("JWT Filter: Token validation failed for user " + username);
+                    logger.warn("Access Denied: Token valid but user record not found in DB [ID: " + userId + ", Role: " + role + ", Username: " + username + "]");
                 }
+            } else {
+                logger.warn("Token validation failed for user: " + username);
+            }
         }
+        
         chain.doFilter(request, response);
     }
 }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from './auth';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -12,13 +13,40 @@ const api = axios.create({
 // Add a request interceptor to include the auth token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
+            config.headers['Authorization'] = `Bearer ${token.trim()}`;
         }
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Add a response interceptor to handle errors globally
+api.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    (error) => {
+        const { removeToken } = require('./auth');
+
+        if (error.response) {
+            const status = error.response.status;
+
+            if (status === 401) {
+                console.warn(`Unauthorized (401) at ${error.config.url}. Clearing session.`);
+                removeToken();
+                // The AuthContext/ProtectedRoute will detect this change and redirect to login
+            } else if (status === 403) {
+                console.error(`Forbidden (403) at ${error.config.url}. Insufficient permissions.`);
+                // DO NOT remove token on 403. Just notify the user.
+            }
+        } else if (error.code === 'ERR_NETWORK') {
+            console.error('Network error - check your connection or backend status.');
+        }
+
         return Promise.reject(error);
     }
 );
@@ -52,6 +80,20 @@ export const casesApi = {
 export const lawyersApi = {
     getProfile: (lawyerId) => api.get(`/lawyers/${lawyerId}/profile`),
     updateProfile: (lawyerId, profileData) => api.put(`/lawyers/${lawyerId}/profile`, profileData),
+};
+
+export const adminApi = {
+    getStats: () => api.get('/admin/stats'),
+    getUsers: (page = 0, size = 100) => api.get(`/admin/users?page=${page}&size=${size}`),
+    getLawyers: (page = 0, size = 100) => api.get(`/admin/lawyers?page=${page}&size=${size}`),
+    getCases: (page = 0, size = 100) => api.get(`/admin/cases?page=${page}&size=${size}`),
+    deleteUser: (id) => api.delete(`/admin/users/${id}`),
+    deleteLawyer: (id) => api.delete(`/admin/lawyers/${id}`),
+    deleteCase: (id) => api.delete(`/admin/cases/${id}`),
+    updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+    updateLawyer: (id, data) => api.put(`/admin/lawyers/${id}`, data),
+    updateCase: (id, data) => api.put(`/admin/cases/${id}`, data),
+    reassignCase: (caseId, lawyerId) => api.put(`/admin/cases/${caseId}/reassign`, { lawyerId }),
 };
 
 export const messagesApi = {

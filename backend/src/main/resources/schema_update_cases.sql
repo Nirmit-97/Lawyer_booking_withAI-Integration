@@ -39,5 +39,6 @@ CREATE TABLE IF NOT EXISTS messages (
     INDEX idx_sender_id (sender_id),
     INDEX idx_receiver_id (receiver_id),
     INDEX idx_created_at (created_at)
+
 );
 

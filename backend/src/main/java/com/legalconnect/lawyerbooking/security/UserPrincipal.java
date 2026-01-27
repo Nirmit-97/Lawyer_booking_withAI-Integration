@@ -5,20 +5,20 @@ import java.security.Principal;
 public class UserPrincipal implements Principal {
     private final Long userId;
     private final String username;
-    private final String userType;
+    private final String role;
 
-    public UserPrincipal(Long userId, String username, String userType) {
+    public UserPrincipal(Long userId, String username, String role) {
         this.userId = userId;
         this.username = username;
-        this.userType = userType;
+        this.role = role;
     }
 
     public Long getUserId() {
         return userId;
     }
 
-    public String getUserType() {
-        return userType;
+    public String getRole() {
+        return role;
     }
 
     @Override
@@ -31,7 +31,7 @@ public class UserPrincipal implements Principal {
         return "UserPrincipal{" +
                 "userId=" + userId +
                 ", username='" + username + '\'' +
-                ", userType='" + userType + '\'' +
+                ", role='" + role + '\'' +
                 '}';
     }
 }

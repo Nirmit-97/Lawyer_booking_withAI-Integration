@@ -8,6 +8,7 @@ import com.legalconnect.lawyerbooking.exception.ResourceNotFoundException;
 import com.legalconnect.lawyerbooking.repository.CaseRepository;
 import com.legalconnect.lawyerbooking.repository.AppointmentRepository;
 import com.legalconnect.lawyerbooking.repository.MessageRepository;
+import com.legalconnect.lawyerbooking.repository.LawyerRepository;
 import com.legalconnect.lawyerbooking.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,9 @@ public class AuthorizationService {
 
     @Autowired
     private MessageRepository messageRepository;
+
+    @Autowired
+    private LawyerRepository lawyerRepository;
 
     public com.legalconnect.lawyerbooking.security.UserPrincipal getCurrentUser() {
         return getCurrentUserOrDefault(null);
@@ -65,7 +69,7 @@ public class AuthorizationService {
     public void verifyCaseAccess(Long caseId) {
         com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
-        String userType = currentUser.getUserType();
+        String userType = currentUser.getRole();
 
         Case caseEntity = caseRepository.findById(caseId)
             .orElseThrow(() -> new ResourceNotFoundException("Case not found with id: " + caseId));
@@ -77,12 +81,32 @@ public class AuthorizationService {
                 throw new UnauthorizedException("You can only access your own cases");
             }
         } else if (userType.equalsIgnoreCase("lawyer")) {
-            // Lawyers can view unassigned cases or cases assigned to them
-            if (caseEntity.getLawyerId() != null && !caseEntity.getLawyerId().equals(userId)) {
-                logger.warn("ACCESS DENIED: Lawyer {} (type: {}) attempted to access case {} assigned to lawyer {}. Principal: {}", 
-                           userId, userType, caseId, caseEntity.getLawyerId(), currentUser.getName());
-                throw new UnauthorizedException("You can only access cases assigned to you");
+            // 1. If assigned, only the assigned lawyer can access
+            if (caseEntity.getLawyerId() != null) {
+                if (!caseEntity.getLawyerId().equals(userId)) {
+                    logger.warn("ACCESS DENIED: Lawyer {} attempted to access case {} assigned to lawyer {}", 
+                               userId, caseId, caseEntity.getLawyerId());
+                    throw new UnauthorizedException("You can only access cases assigned to you");
+                }
+            } else {
+                // 2. If UNASSIGNED, only lawyers with matching specialization can access
+                var lawyer = lawyerRepository.findById(userId)
+                    .orElseThrow(() -> new UnauthorizedException("Lawyer profile not found"));
+                
+                com.legalconnect.lawyerbooking.enums.CaseType type = caseEntity.getCaseType();
+                java.util.Set<com.legalconnect.lawyerbooking.enums.CaseType> specs = lawyer.getSpecializations();
+                
+                if (type == null || specs == null || !specs.contains(type)) {
+                    logger.warn("ACCESS DENIED: Lawyer {} (specs: {}) attempted to access unassigned case {} of type {}", 
+                               userId, specs, caseId, type);
+                    throw new UnauthorizedException("You can only access cases that match your specializations");
+                }
             }
+            // 3. Ensure case is not deleted (Soft Delete)
+            if (caseEntity.isDeleted()) {
+                throw new ResourceNotFoundException("Case not found or deleted");
+            }
+            
             logger.info("Access granted for lawyer {} to case {}", userId, caseId);
         } else {
             logger.error("Invalid user type: {} for user {}", userType, userId);
@@ -103,16 +127,16 @@ public class AuthorizationService {
     public void verifyMessageAccess(Long caseId, java.security.Principal principal) {
         com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUserOrDefault(principal);
         Long senderId = currentUser.getUserId();
-        String senderType = currentUser.getUserType();
+        String senderType = currentUser.getRole();
 
         Case caseEntity = caseRepository.findById(caseId)
             .orElseThrow(() -> new ResourceNotFoundException("Case not found with id: " + caseId));
 
-        if (senderType.equals("user")) {
+        if (senderType.equalsIgnoreCase("user")) {
             if (!caseEntity.getUserId().equals(senderId)) {
                 throw new UnauthorizedException("User does not have access to this case");
             }
-        } else if (senderType.equals("lawyer")) {
+        } else if (senderType.equalsIgnoreCase("lawyer")) {
             if (caseEntity.getLawyerId() == null || !caseEntity.getLawyerId().equals(senderId)) {
                 throw new UnauthorizedException("Lawyer does not have access to this case");
             }
@@ -127,16 +151,16 @@ public class AuthorizationService {
     public void verifyAppointmentAccess(Long appointmentId) {
         com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
-        String userType = currentUser.getUserType();
+        String userType = currentUser.getRole();
 
         Appointment appointment = appointmentRepository.findById(appointmentId)
             .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
-        if (userType.equals("user")) {
+        if (userType.equalsIgnoreCase("user")) {
             if (!appointment.getUserId().equals(userId)) {
                 throw new UnauthorizedException("You can only access your own appointments");
             }
-        } else if (userType.equals("lawyer")) {
+        } else if (userType.equalsIgnoreCase("lawyer")) {
             if (!appointment.getLawyerId().equals(userId)) {
                 throw new UnauthorizedException("You can only access your own appointments");
             }
@@ -149,7 +173,7 @@ public class AuthorizationService {
     public void verifyCaseUpdateAccess(Long caseId) {
         com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
-        String userType = currentUser.getUserType();
+        String userType = currentUser.getRole();
         
         System.out.println("DEBUG: verifyCaseUpdateAccess - CaseId: " + caseId + ", Current UserId: " + userId + ", UserType: " + userType);
 
@@ -177,7 +201,7 @@ public class AuthorizationService {
     public void verifyLawyerAccess(Long lawyerId) {
         com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
-        String userType = currentUser.getUserType();
+        String userType = currentUser.getRole();
 
         if (!userType.equalsIgnoreCase("lawyer") || !userId.equals(lawyerId)) {
             logger.warn("User {} with type {} attempted to access/update lawyer profile {}", 

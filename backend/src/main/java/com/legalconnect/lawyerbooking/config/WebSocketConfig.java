@@ -24,7 +24,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private com.legalconnect.lawyerbooking.security.WebSocketAuthenticationInterceptor authInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -39,5 +39,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .withSockJS();
     }
 
-    // No longer using ChannelInterceptor for JWT as we are passing senderId in payload
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(authInterceptor);
+    }
 }

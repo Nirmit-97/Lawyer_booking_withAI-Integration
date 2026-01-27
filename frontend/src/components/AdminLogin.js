@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
 import './Login.css';
 
 const AdminLogin = () => {
@@ -8,6 +10,7 @@ const AdminLogin = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -15,29 +18,23 @@ const AdminLogin = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8080/api/admin/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password }),
-            });
-
-            const data = await response.json();
+            const response = await api.post('/admin/login', { username, password });
+            const data = response.data;
 
             if (data.success) {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('userType', 'admin');
-                localStorage.setItem('username', data.username);
-                localStorage.setItem('fullName', data.fullName);
-                localStorage.setItem('userId', data.id);
+                const adminData = {
+                    username: data.username,
+                    fullName: data.fullName,
+                    id: data.id
+                };
+                login('admin', data.token, adminData);
 
                 navigate('/admin/dashboard');
             } else {
                 setError(data.message || 'Login failed');
             }
         } catch (err) {
-            setError('Network error. Please try again.');
+            setError(err.response?.data?.message || 'Network error. Please try again.');
             console.error('Login error:', err);
         } finally {
             setLoading(false);

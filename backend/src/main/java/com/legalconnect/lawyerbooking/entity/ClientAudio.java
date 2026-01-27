@@ -19,6 +19,10 @@ public class ClientAudio {
     @Column(name = "appointment_id")
     private Long appointmentId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "case_id", insertable = false, updatable = false)
+    private Case caseEntity;
+
     @Column(name = "case_id")
     private Long caseId;
 
@@ -106,5 +110,16 @@ public class ClientAudio {
 
     public void setCaseId(Long caseId) {
         this.caseId = caseId;
+    }
+
+    public Case getCaseEntity() {
+        return caseEntity;
+    }
+
+    public void setCaseEntity(Case caseEntity) {
+        this.caseEntity = caseEntity;
+        if (caseEntity != null) {
+            this.caseId = caseEntity.getId();
+        }
     }
 }

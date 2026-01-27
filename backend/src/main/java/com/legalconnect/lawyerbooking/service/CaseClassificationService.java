@@ -30,6 +30,16 @@ public class CaseClassificationService {
             .build();
 
     private final ObjectMapper mapper = new ObjectMapper();
+    
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            logger.error("CRITICAL: OpenAI API Key is NULL or EMPTY in CaseClassificationService!");
+        } else {
+            String masked = apiKey.length() > 10 ? apiKey.substring(0, 10) + "..." : "***";
+            logger.info("CaseClassificationService initialized with key: {}", masked);
+        }
+    }
 
     private static final Map<String, String[]> KEYWORD_MAP = new HashMap<>();
 

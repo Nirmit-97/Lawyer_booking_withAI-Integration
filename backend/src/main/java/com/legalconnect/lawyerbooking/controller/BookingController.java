@@ -211,7 +211,7 @@ public class BookingController {
                     Map<String, Object> lawyerMap = new HashMap<>();
                     lawyerMap.put("id", lawyer.getId());
                     lawyerMap.put("fullName", lawyer.getFullName());
-                    lawyerMap.put("specialization", lawyer.getSpecialization());
+                    lawyerMap.put("specializations", lawyer.getSpecializations());
                     lawyerMap.put("barNumber", lawyer.getBarNumber());
                     lawyerMap.put("email", lawyer.getEmail());
                     return lawyerMap;

@@ -10,6 +10,7 @@ import com.legalconnect.lawyerbooking.repository.LawyerRepository;
 import com.legalconnect.lawyerbooking.repository.UserRepository;
 import com.legalconnect.lawyerbooking.repository.CaseRepository;
 import com.legalconnect.lawyerbooking.entity.Case;
+import com.legalconnect.lawyerbooking.enums.CaseStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,8 +81,8 @@ public class BookingService {
             Optional<Case> caseOpt = caseRepository.findById(request.getCaseId());
             if (caseOpt.isPresent()) {
                 Case caseEntity = caseOpt.get();
-                if ("open".equals(caseEntity.getCaseStatus())) {
-                    caseEntity.setCaseStatus("in-progress");
+                if (CaseStatus.OPEN.equals(caseEntity.getCaseStatus())) {
+                    caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
                     // Ensure lawyer is assigned if not already
                     if (caseEntity.getLawyerId() == null) {
                         caseEntity.setLawyerId(request.getLawyerId());
@@ -248,8 +249,8 @@ public class BookingService {
             Optional<Case> caseOpt = caseRepository.findById(updated.getCaseId());
             if (caseOpt.isPresent()) {
                 Case caseEntity = caseOpt.get();
-                if ("open".equals(caseEntity.getCaseStatus())) {
-                    caseEntity.setCaseStatus("in-progress");
+                if (CaseStatus.OPEN.equals(caseEntity.getCaseStatus())) {
+                    caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
                     caseRepository.save(caseEntity);
                 }
             }

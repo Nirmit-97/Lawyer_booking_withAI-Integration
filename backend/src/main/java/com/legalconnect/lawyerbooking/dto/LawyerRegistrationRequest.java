@@ -1,8 +1,10 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.Set;
 
 public class LawyerRegistrationRequest {
     
@@ -26,18 +28,17 @@ public class LawyerRegistrationRequest {
     @Size(max = 100, message = "Bar number must not exceed 100 characters")
     private String barNumber;
     
-    @Size(max = 255, message = "Specialization must not exceed 255 characters")
-    private String specialization;
+    private Set<CaseType> specializations;
 
     public LawyerRegistrationRequest() {}
 
-    public LawyerRegistrationRequest(String username, String password, String fullName, String email, String barNumber, String specialization) {
+    public LawyerRegistrationRequest(String username, String password, String fullName, String email, String barNumber, Set<CaseType> specializations) {
         this.username = username;
         this.password = password;
         this.fullName = fullName;
         this.email = email;
         this.barNumber = barNumber;
-        this.specialization = specialization;
+        this.specializations = specializations;
     }
 
     public String getUsername() {
@@ -80,12 +81,12 @@ public class LawyerRegistrationRequest {
         this.barNumber = barNumber;
     }
 
-    public String getSpecialization() {
-        return specialization;
+    public Set<CaseType> getSpecializations() {
+        return specializations;
     }
 
-    public void setSpecialization(String specialization) {
-        this.specialization = specialization;
+    public void setSpecializations(Set<CaseType> specializations) {
+        this.specializations = specializations;
     }
 }
 

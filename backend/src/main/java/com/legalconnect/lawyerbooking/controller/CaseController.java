@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.legalconnect.lawyerbooking.service.CaseService;
 import com.legalconnect.lawyerbooking.service.AuthorizationService;
 import com.legalconnect.lawyerbooking.util.JwtUtil;
+import java.util.stream.Collectors;
 import com.legalconnect.lawyerbooking.dto.CaseDTO;
 import com.legalconnect.lawyerbooking.dto.CaseRequest;
 import com.legalconnect.lawyerbooking.exception.UnauthorizedException;
@@ -31,13 +32,19 @@ public class CaseController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private com.legalconnect.lawyerbooking.repository.LawyerRepository lawyerRepository;
+
     @PostMapping("/create")
     public ResponseEntity<CaseDTO> createCase(@RequestBody CaseRequest request) {
         try {
             CaseDTO caseDTO = caseService.createCase(request);
             return ResponseEntity.ok(caseDTO);
-        } catch (Exception e) {
+        } catch (com.legalconnect.lawyerbooking.exception.BadRequestException e) {
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error creating case: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).build();
         }
     }
 
@@ -49,11 +56,13 @@ public class CaseController {
             CaseDTO caseDTO = caseService.getCaseById(id);
             return ResponseEntity.ok(caseDTO);
         } catch (UnauthorizedException e) {
-            logger.warn("Unauthorized access attempt to case {}", id);
-            return ResponseEntity.status(401).build();
+            logger.warn("Access denied to case {}: {}", id, e.getMessage());
+            return ResponseEntity.status(403).body(null);
+        } catch (com.legalconnect.lawyerbooking.exception.ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
             logger.error("Error fetching case {}", id, e);
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(500).build();
         }
     }
 
@@ -64,14 +73,14 @@ public class CaseController {
             com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
             
             logger.info("DEBUG_AUTH: userId={}, currentUserId={}, currentUserType={}", 
-                userId, currentUser.getUserId(), currentUser.getUserType());
+                userId, currentUser.getUserId(), currentUser.getRole());
 
-            if (!currentUser.getUserType().equalsIgnoreCase("user") || !currentUser.getUserId().equals(userId)) {
+            if (!currentUser.getRole().equalsIgnoreCase("user") || !currentUser.getUserId().equals(userId)) {
                 logger.warn("Unauthorized access to cases for user {}. Principal: {}", userId, currentUser.getName());
                 return ResponseEntity.status(401).build();
             }
             
-            List<CaseDTO> cases = caseService.getCasesByUserId(userId);
+            List<CaseDTO> cases = caseService.getCasesForUser(userId);
             return ResponseEntity.ok(cases);
         } catch (UnauthorizedException e) {
             logger.warn("Unauthorized in getCasesByUserId: {}", e.getMessage());
@@ -83,18 +92,38 @@ public class CaseController {
     public ResponseEntity<List<CaseDTO>> getCasesByLawyerId(@PathVariable("lawyerId") Long lawyerId) {
         try {
             authorizationService.verifyLawyerAccess(lawyerId);
-            List<CaseDTO> cases = caseService.getCasesByLawyerId(lawyerId);
+            List<CaseDTO> cases = caseService.getCasesForLawyer(lawyerId);
             return ResponseEntity.ok(cases);
         } catch (UnauthorizedException e) {
             logger.warn("Unauthorized in getCasesByLawyerId: {}", e.getMessage());
             return ResponseEntity.status(401).build();
+        } catch (Exception e) {
+            logger.error("Error in getCasesByLawyerId: ", e);
+            return ResponseEntity.status(500).build();
         }
     }
 
     @GetMapping("/unassigned")
     public ResponseEntity<List<CaseDTO>> getUnassignedCases() {
-        List<CaseDTO> cases = caseService.getUnassignedCases();
-        return ResponseEntity.ok(cases);
+        try {
+            com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
+            
+            if ("lawyer".equalsIgnoreCase(currentUser.getRole())) {
+                List<CaseDTO> cases = caseService.getCasesForLawyer(currentUser.getUserId());
+                // Only return unassigned ones if that's the intended endpoint behavior
+                return ResponseEntity.ok(cases.stream()
+                    .filter(c -> c.getLawyerId() == null)
+                    .collect(Collectors.toList()));
+            }
+            
+            // For Admin or non-lawyers, return all unassigned cases via service
+            return ResponseEntity.ok(caseService.getAllCasesForAdmin().stream()
+                .filter(c -> c.getLawyerId() == null)
+                .collect(Collectors.toList()));
+        } catch (Exception e) {
+            logger.error("Error in getUnassignedCases: {}", e.getMessage());
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @GetMapping("/recommended/{lawyerId}")
@@ -149,12 +178,29 @@ public class CaseController {
     public ResponseEntity<CaseDTO> updateCaseStatus(
             @PathVariable("caseId") Long caseId,
             @RequestBody Map<String, String> request) {
+        logger.info("Received status update request for case ID: {}", caseId);
         try {
+            authorizationService.verifyCaseUpdateAccess(caseId);
+            
             String status = request.get("status");
+            if (status == null || status.trim().isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+            
             CaseDTO caseDTO = caseService.updateCaseStatus(caseId, status);
             return ResponseEntity.ok(caseDTO);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+        } catch (UnauthorizedException e) {
+            logger.warn("Access denied for status update of case {}: {}", caseId, e.getMessage());
+            return ResponseEntity.status(403).build();
+        } catch (com.legalconnect.lawyerbooking.exception.ResourceNotFoundException e) {
+            logger.warn("Case not found for status update: {}", caseId);
+            return ResponseEntity.notFound().build(); 
+        } catch (com.legalconnect.lawyerbooking.exception.BadRequestException e) {
+            logger.warn("Bad request for status update of case {}: {}", caseId, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error updating case status {}: {}", caseId, e.getMessage(), e);
+            return ResponseEntity.status(500).build();
         }
     }
 }

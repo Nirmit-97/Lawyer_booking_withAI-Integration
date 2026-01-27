@@ -3,10 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { getAuthHeaders } from '../utils/auth';
+import api from '../utils/api';
 import './Booking.css';
-
-const API_BASE_URL = 'http://localhost:8080/api';
 
 function AppointmentsList({ userId, userType = 'user' }) {
   const [appointments, setAppointments] = useState([]);
@@ -22,29 +20,19 @@ function AppointmentsList({ userId, userType = 'user' }) {
       let url;
       if (filter === 'upcoming') {
         url = userType === 'user'
-          ? `${API_BASE_URL}/bookings/user/${userId}/upcoming`
-          : `${API_BASE_URL}/bookings/lawyer/${userId}/upcoming`;
+          ? `/bookings/user/${userId}/upcoming`
+          : `/bookings/lawyer/${userId}/upcoming`;
       } else {
         url = userType === 'user'
-          ? `${API_BASE_URL}/bookings/user/${userId}`
-          : `${API_BASE_URL}/bookings/lawyer/${userId}`;
+          ? `/bookings/user/${userId}`
+          : `/bookings/lawyer/${userId}`;
       }
 
-      const response = await fetch(url, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
-      }
-
-      const data = await response.json();
-      setAppointments(Array.isArray(data) ? data : []);
+      const response = await api.get(url);
+      setAppointments(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching appointments:', err);
-      const errorMsg = err.message.includes('fetch')
-        ? 'Error loading appointments: Cannot connect to server. Please ensure the backend is running on http://localhost:8080'
-        : 'Error loading appointments: ' + err.message;
+      const errorMsg = 'Error loading appointments';
       setError(errorMsg);
       toast.error(errorMsg);
       setAppointments([]);
@@ -63,21 +51,17 @@ function AppointmentsList({ userId, userType = 'user' }) {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${appointmentId}/cancel`, {
-        method: 'PUT',
+      const response = await api.put(`/bookings/${appointmentId}/cancel`, {}, {
         headers: {
-          ...getAuthHeaders(),
           'X-User-Id': userId.toString()
         }
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         toast.success('Appointment cancelled successfully');
         fetchAppointments(); // Refresh list
       } else {
-        const errorMsg = data.message || 'Failed to cancel appointment';
+        const errorMsg = response.data.message || 'Failed to cancel appointment';
         toast.error(errorMsg);
       }
     } catch (err) {
@@ -88,21 +72,17 @@ function AppointmentsList({ userId, userType = 'user' }) {
 
   const handleConfirm = async (appointmentId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${appointmentId}/confirm`, {
-        method: 'PUT',
+      const response = await api.put(`/bookings/${appointmentId}/confirm`, {}, {
         headers: {
-          ...getAuthHeaders(),
           'X-Lawyer-Id': userId.toString()
         }
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         toast.success('Appointment confirmed successfully');
         fetchAppointments(); // Refresh list
       } else {
-        const errorMsg = data.message || 'Failed to confirm appointment';
+        const errorMsg = response.data.message || 'Failed to confirm appointment';
         toast.error(errorMsg);
       }
     } catch (err) {

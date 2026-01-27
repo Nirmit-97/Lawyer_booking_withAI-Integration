@@ -1,21 +1,21 @@
 package com.legalconnect.lawyerbooking.dto;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
+
 public class CaseRequest {
     private Long userId;
     private String caseTitle;
-    private String caseType;
+    private CaseType caseType;
     private String description;
-    private String caseCategory;
 
     // Constructors
     public CaseRequest() {}
 
-    public CaseRequest(Long userId, String caseTitle, String caseType, String description, String caseCategory) {
+    public CaseRequest(Long userId, String caseTitle, CaseType caseType, String description) {
         this.userId = userId;
         this.caseTitle = caseTitle;
         this.caseType = caseType;
         this.description = description;
-        this.caseCategory = caseCategory;
     }
 
     // Getters and Setters
@@ -35,11 +35,11 @@ public class CaseRequest {
         this.caseTitle = caseTitle;
     }
 
-    public String getCaseType() {
+    public CaseType getCaseType() {
         return caseType;
     }
 
-    public void setCaseType(String caseType) {
+    public void setCaseType(CaseType caseType) {
         this.caseType = caseType;
     }
 
@@ -49,14 +49,6 @@ public class CaseRequest {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public String getCaseCategory() {
-        return caseCategory;
-    }
-
-    public void setCaseCategory(String caseCategory) {
-        this.caseCategory = caseCategory;
     }
 }
 

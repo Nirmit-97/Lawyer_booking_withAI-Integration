@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { lawyersApi } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
@@ -8,11 +9,14 @@ const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
   const lawyerId = propLawyerId || paramLawyerId;
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const isOwnProfile = user?.role === 'lawyer' && parseInt(user?.id) === parseInt(lawyerId);
 
   const categories = ["Criminal", "Family", "Civil", "Corporate", "Property", "Cyber Crime", "Labour"];
 
@@ -42,8 +46,12 @@ const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
   };
 
   const toggleCategory = (cat) => {
-    const currentSpecs = formData.specializations || "";
-    const specsArray = currentSpecs ? currentSpecs.split(',').map(s => s.trim()) : [];
+    let specsArray = [];
+    if (Array.isArray(formData.specializations)) {
+      specsArray = formData.specializations;
+    } else if (typeof formData.specializations === 'string') {
+      specsArray = formData.specializations.split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     let newSpecs;
     if (specsArray.includes(cat)) {
@@ -189,20 +197,14 @@ const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
 
   return (
     <div style={styles.container}>
-      {(() => {
-        const storedUserId = localStorage.getItem('userId');
-        const storedUserType = localStorage.getItem('userType');
-        const isOwnProfile = storedUserType === 'lawyer' && parseInt(storedUserId) === parseInt(lawyerId);
-
-        return isOwnProfile && (
-          <button
-            style={styles.editButton}
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? 'Cancel' : 'Edit Profile'}
-          </button>
-        );
-      })()}
+      {isOwnProfile && (
+        <button
+          style={styles.editButton}
+          onClick={() => setIsEditing(!isEditing)}
+        >
+          {isEditing ? 'Cancel' : 'Edit Profile'}
+        </button>
+      )}
 
       {!isEditing ? (
         <>
@@ -268,7 +270,10 @@ const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
             <label style={styles.label}>Legal Specializations (Select all that apply)</label>
             <div style={styles.categoryContainer}>
               {categories.map(cat => {
-                const isSelected = (formData.specializations || "").includes(cat);
+                const specs = formData.specializations || [];
+                const isSelected = Array.isArray(specs)
+                  ? specs.some(s => s.toUpperCase().replace(/ /g, '_') === cat.toUpperCase().replace(/ /g, '_'))
+                  : specs.toUpperCase().includes(cat.toUpperCase());
                 return (
                   <div
                     key={cat}

@@ -10,16 +10,16 @@ import org.springframework.web.multipart.MultipartFile;
 import com.legalconnect.lawyerbooking.entity.ClientAudio;
 import com.legalconnect.lawyerbooking.dto.CaseRequest;
 import com.legalconnect.lawyerbooking.dto.CaseDTO;
+import com.legalconnect.lawyerbooking.dto.ClientAudioDTO;
 import com.legalconnect.lawyerbooking.repository.ClientAudioRepository;
 import com.legalconnect.lawyerbooking.exception.AudioProcessingException;
+import com.legalconnect.lawyerbooking.enums.CaseType;
+import com.legalconnect.lawyerbooking.repository.LawyerRepository;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Service responsible for processing audio files, including:
- * 1. Transcription (Whisper)
- * 2. PII Masking
- * 3. Translation
- * 4. Text-to-Speech generation
- * 5. Case creation and linking
+ * Service responsible for processing audio files...
  */
 @Service
 public class AudioProcessingService {
@@ -33,6 +33,7 @@ public class AudioProcessingService {
     private final ClientAudioRepository repository;
     private final CaseService caseService;
     private final CaseClassificationService classificationService;
+    private final LawyerRepository lawyerRepository;
 
     @Autowired
     public AudioProcessingService(
@@ -42,7 +43,8 @@ public class AudioProcessingService {
             TextTranslationService translationService,
             ClientAudioRepository repository,
             CaseService caseService,
-            CaseClassificationService classificationService) {
+            CaseClassificationService classificationService,
+            LawyerRepository lawyerRepository) {
         this.whisperService = whisperService;
         this.maskingService = maskingService;
         this.textToSpeechService = textToSpeechService;
@@ -50,6 +52,46 @@ public class AudioProcessingService {
         this.repository = repository;
         this.caseService = caseService;
         this.classificationService = classificationService;
+        this.lawyerRepository = lawyerRepository;
+    }
+
+    public List<ClientAudioDTO> getAllAudioForAdmin() {
+        return repository.findAllAudio().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ClientAudioDTO> getAudioForUser(Long userId) {
+        return repository.findForUser(userId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ClientAudioDTO> getAudioForLawyer(Long lawyerId) {
+        var lawyer = lawyerRepository.findById(lawyerId)
+                .orElseThrow(() -> new com.legalconnect.lawyerbooking.exception.ResourceNotFoundException("Lawyer not found"));
+        
+        java.util.Set<CaseType> specs = lawyer.getSpecializations();
+        // If no specs, they might only see audio for cases explicitly assigned to them
+        // The JPQL handles this if we pass the specs (even if empty)
+        return repository.findForLawyer(lawyerId, specs).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private ClientAudioDTO convertToDTO(ClientAudio ca) {
+        return new ClientAudioDTO(
+            ca.getId(),
+            ca.getLanguage(),
+            ca.getOriginalEnglishText(),
+            ca.getMaskedEnglishText(),
+            ca.getMaskedTextAudio(),
+            ca.getMaskedGujaratiText(),
+            ca.getMaskedGujaratiAudio(),
+            ca.getUserId(),
+            ca.getCaseId(),
+            ca.getLawyerId()
+        );
     }
 
     /**
@@ -189,12 +231,23 @@ public class AudioProcessingService {
             CaseRequest caseRequest = new CaseRequest();
             caseRequest.setUserId(userId);
             caseRequest.setCaseTitle(title);
-            caseRequest.setCaseType("General");
             
             // 6. Classification
             logger.debug("Step 6: Classifying case category...");
             String category = classificationService.classifyCase(clientAudio.getMaskedEnglishText());
-            caseRequest.setCaseCategory(category);
+            
+            // Map classified category to CaseType enum
+            try {
+                if (category != null && !category.trim().isEmpty()) {
+                    String normCategory = category.trim().toUpperCase().replace(" ", "_");
+                    caseRequest.setCaseType(com.legalconnect.lawyerbooking.enums.CaseType.valueOf(normCategory));
+                } else {
+                    caseRequest.setCaseType(com.legalconnect.lawyerbooking.enums.CaseType.OTHER);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to map audio classification '{}' to CaseType, defaulting to OTHER", category);
+                caseRequest.setCaseType(com.legalconnect.lawyerbooking.enums.CaseType.OTHER);
+            }
             
             // Generate description safely (max 500 chars)
             String description = clientAudio.getMaskedEnglishText() != null 

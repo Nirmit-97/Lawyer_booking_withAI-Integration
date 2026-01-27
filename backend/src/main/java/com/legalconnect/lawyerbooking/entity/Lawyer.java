@@ -1,7 +1,10 @@
 package com.legalconnect.lawyerbooking.entity;
 
+import com.legalconnect.lawyerbooking.enums.CaseType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "lawyers")
@@ -26,11 +29,11 @@ public class Lawyer {
     @Column(name = "bar_number", length = 100)
     private String barNumber;
 
-    @Column(length = 255)
-    private String specialization;
-
-    @Column(name = "specializations", length = 500)
-    private String specializations; 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "lawyer_specializations", joinColumns = @JoinColumn(name = "lawyer_id"))
+    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseTypeConverter.class)
+    @Column(name = "specialization")
+    private Set<CaseType> specializations = new HashSet<>();
 
     @Column(name = "years_of_experience")
     private Integer yearsOfExperience;
@@ -86,11 +89,13 @@ public class Lawyer {
     public String getBarNumber() { return barNumber; }
     public void setBarNumber(String barNumber) { this.barNumber = barNumber; }
 
-    public String getSpecialization() { return specialization; }
-    public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public Set<CaseType> getSpecializations() {
+        return specializations;
+    }
 
-    public String getSpecializations() { return specializations; }
-    public void setSpecializations(String specializations) { this.specializations = specializations; }
+    public void setSpecializations(Set<CaseType> specializations) {
+        this.specializations = specializations;
+    }
 
     public Integer getYearsOfExperience() { return yearsOfExperience; }
     public void setYearsOfExperience(Integer yearsOfExperience) { this.yearsOfExperience = yearsOfExperience; }

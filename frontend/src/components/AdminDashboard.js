@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { adminApi } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -8,95 +12,100 @@ const AdminDashboard = () => {
     const [lawyers, setLawyers] = useState([]);
     const [cases, setCases] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    const [newLawyerId, setNewLawyerId] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080/api/admin';
-    const token = localStorage.getItem('token');
-
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
+    const { user, logout, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
 
     // Fetch dashboard stats
     useEffect(() => {
-        fetchStats();
-    }, []);
+        if (user && user.role === 'admin') {
+            fetchStats();
+        }
+    }, [user]);
 
     // Fetch data based on active tab
     useEffect(() => {
+        if (!user || user.role !== 'admin') return;
+
         if (activeTab === 'users') fetchUsers();
         else if (activeTab === 'lawyers') fetchLawyers();
         else if (activeTab === 'cases') fetchCases();
-    }, [activeTab]);
+    }, [activeTab, user]);
 
     const fetchStats = async () => {
+        setStatsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/stats`, { headers });
-            const data = await response.json();
-            setStats(data);
+            const response = await adminApi.getStats();
+            setStats(response.data);
         } catch (error) {
             console.error('Error fetching stats:', error);
+            handleError(error);
+        } finally {
+            setStatsLoading(false);
         }
     };
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/users?page=0&size=100`, { headers });
-            const data = await response.json();
-            setUsers(data.content || []);
+            const response = await adminApi.getUsers();
+            setUsers(response.data.content || []);
         } catch (error) {
             console.error('Error fetching users:', error);
+            handleError(error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const fetchLawyers = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/lawyers?page=0&size=100`, { headers });
-            const data = await response.json();
-            setLawyers(data.content || []);
+            const response = await adminApi.getLawyers();
+            setLawyers(response.data.content || []);
         } catch (error) {
             console.error('Error fetching lawyers:', error);
+            handleError(error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const fetchCases = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/cases?page=0&size=100`, { headers });
-            const data = await response.json();
-            setCases(data.content || []);
+            const response = await adminApi.getCases();
+            setCases(response.data.content || []);
         } catch (error) {
             console.error('Error fetching cases:', error);
+            handleError(error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleDelete = async (type, id) => {
         if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/${type}/${id}`, {
-                method: 'DELETE',
-                headers
-            });
+            if (type === 'users') await adminApi.deleteUser(id);
+            else if (type === 'lawyers') await adminApi.deleteLawyer(id);
+            else if (type === 'cases') await adminApi.deleteCase(id);
 
-            if (response.ok) {
-                alert(`${type} deleted successfully`);
-                if (type === 'users') fetchUsers();
-                else if (type === 'lawyers') fetchLawyers();
-                else if (type === 'cases') fetchCases();
-                fetchStats();
-            }
+            toast.success(`${type} deleted successfully`);
+
+            if (type === 'users') fetchUsers();
+            else if (type === 'lawyers') fetchLawyers();
+            else if (type === 'cases') fetchCases();
+            fetchStats();
         } catch (error) {
             console.error(`Error deleting ${type}:`, error);
-            alert(`Failed to delete ${type}`);
+            toast.error(`Failed to delete ${type}`);
         }
     };
 
@@ -116,58 +125,83 @@ const AdminDashboard = () => {
         const { type, id, ...updateData } = selectedItem;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/${type}/${id}`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify(updateData)
-            });
+            if (type === 'users') await adminApi.updateUser(id, updateData);
+            else if (type === 'lawyers') await adminApi.updateLawyer(id, updateData);
+            else if (type === 'cases') await adminApi.updateCase(id, updateData);
 
-            if (response.ok) {
-                alert(`${type} updated successfully`);
-                setShowModal(false);
-                if (type === 'users') fetchUsers();
-                else if (type === 'lawyers') fetchLawyers();
-                else if (type === 'cases') fetchCases();
-            }
+            toast.success(`${type} updated successfully`);
+            setShowModal(false);
+
+            if (type === 'users') fetchUsers();
+            else if (type === 'lawyers') fetchLawyers();
+            else if (type === 'cases') fetchCases();
+            fetchStats();
         } catch (error) {
             console.error('Error updating:', error);
-            alert('Failed to update');
+            toast.error('Failed to update');
         }
     };
 
     const handleReassignCase = async (caseId) => {
-        const newLawyerId = prompt('Enter new Lawyer ID:');
-        if (!newLawyerId) return;
+        const lawyerId = prompt('Enter new Lawyer ID:');
+        if (!lawyerId) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/cases/${caseId}/reassign`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify({ lawyerId: parseInt(newLawyerId) })
-            });
-
-            if (response.ok) {
-                alert('Case reassigned successfully');
-                fetchCases();
-            } else {
-                alert('Failed to reassign case');
-            }
+            await adminApi.reassignCase(caseId, parseInt(lawyerId));
+            toast.success('Case reassigned successfully');
+            fetchCases();
+            fetchStats();
         } catch (error) {
             console.error('Error reassigning case:', error);
-            alert('Failed to reassign case');
+            toast.error('Failed to reassign case');
         }
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userType');
-        window.location.href = '/admin/login';
+        logout();
+        navigate('/admin/login');
     };
+
+    const handleVerifyCase = async (caseId) => {
+        try {
+            await adminApi.updateCase(caseId, { caseStatus: 'VERIFIED' });
+            toast.success('Case verified successfully');
+            fetchCases();
+            fetchStats();
+        } catch (error) {
+            console.error('Error verifying case:', error);
+            toast.error('Failed to verify case');
+        }
+    };
+
+    const handleError = (error) => {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+            logout();
+            navigate('/admin/login');
+        } else {
+            toast.error('Operation failed. Check console for details.');
+        }
+    };
+
+    if (authLoading) {
+        return (
+            <div className="admin-dashboard-loading">
+                <div className="loader">Loading Admin Session...</div>
+            </div>
+        );
+    }
+
+    if (!user || user.role !== 'admin') {
+        return null; // ProtectedRoute will handle redirect
+    }
 
     return (
         <div className="admin-dashboard">
             <header className="admin-header">
-                <h1>Admin Dashboard</h1>
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <p className="welcome-text">Logged in as: {user.fullName || user.username}</p>
+                </div>
                 <button onClick={handleLogout} className="logout-btn">Logout</button>
             </header>
 
@@ -200,19 +234,25 @@ const AdminDashboard = () => {
 
             <div className="admin-content">
                 {activeTab === 'dashboard' && (
-                    <div className="stats-grid">
-                        <div className="stat-card">
-                            <h3>Total Users</h3>
-                            <p className="stat-number">{stats.totalUsers}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Total Lawyers</h3>
-                            <p className="stat-number">{stats.totalLawyers}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Total Cases</h3>
-                            <p className="stat-number">{stats.totalCases}</p>
-                        </div>
+                    <div className="stats-container">
+                        {statsLoading ? (
+                            <div className="loading-stats">Updating statistics...</div>
+                        ) : (
+                            <div className="stats-grid">
+                                <div className="stat-card">
+                                    <h3>Total Users</h3>
+                                    <p className="stat-number">{stats.totalUsers}</p>
+                                </div>
+                                <div className="stat-card">
+                                    <h3>Total Lawyers</h3>
+                                    <p className="stat-number">{stats.totalLawyers}</p>
+                                </div>
+                                <div className="stat-card">
+                                    <h3>Total Cases</h3>
+                                    <p className="stat-number">{stats.totalCases}</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -316,6 +356,9 @@ const AdminDashboard = () => {
                                             <td>
                                                 <button onClick={() => handleView(caseItem, 'cases')} className="btn-view">View</button>
                                                 <button onClick={() => handleEdit(caseItem, 'cases')} className="btn-edit">Edit</button>
+                                                {caseItem.caseStatus !== 'VERIFIED' && (
+                                                    <button onClick={() => handleVerifyCase(caseItem.id)} className="btn-verify">Verify</button>
+                                                )}
                                                 <button onClick={() => handleReassignCase(caseItem.id)} className="btn-reassign">Reassign</button>
                                                 <button onClick={() => handleDelete('cases', caseItem.id)} className="btn-delete">Delete</button>
                                             </td>
@@ -428,14 +471,15 @@ const AdminDashboard = () => {
                                     <div className="form-group">
                                         <label>Status:</label>
                                         <select
-                                            value={selectedItem.caseStatus || 'open'}
+                                            value={selectedItem.caseStatus || 'OPEN'}
                                             onChange={(e) => setSelectedItem({ ...selectedItem, caseStatus: e.target.value })}
                                             disabled={!editMode}
                                         >
-                                            <option value="open">Open</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="closed">Closed</option>
-                                            <option value="on-hold">On Hold</option>
+                                            <option value="OPEN">Open</option>
+                                            <option value="IN_PROGRESS">In Progress</option>
+                                            <option value="CLOSED">Closed</option>
+                                            <option value="ON_HOLD">On Hold</option>
+                                            <option value="VERIFIED">Verified</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
