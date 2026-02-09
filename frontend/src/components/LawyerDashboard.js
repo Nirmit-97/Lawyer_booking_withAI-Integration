@@ -34,7 +34,8 @@ function LawyerDashboard() {
     const navigate = useNavigate();
 
     // Safety return for unauthorized access (though ProtectedRoute handles this)
-    if (!user || user.role !== 'lawyer') return null;
+    // Moved early return to prevent hook violation
+    // if (!user || user.role !== 'lawyer') return null;
 
     const handleLogout = useCallback(() => {
         // Stop any playing audio before logout
@@ -320,6 +321,9 @@ function LawyerDashboard() {
             setError('Error playing audio');
         }
     };
+
+    // Safety return for unauthorized access (after hooks)
+    if (!user || user.role !== 'lawyer') return null;
 
     return (
         <div className="dashboard-container">

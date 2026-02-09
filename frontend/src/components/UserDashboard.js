@@ -21,7 +21,8 @@ function UserDashboard() {
   const userId = user?.id ? parseInt(user.id) : null;
 
   // Safety return for unauthorized access (though ProtectedRoute handles this)
-  if (!user || user.role !== 'user') return null;
+  // Moved early return to prevent hook violation
+  // if (!user || user.role !== 'user') return null;
 
   const fetchCases = useCallback(async () => {
     if (!userId) return;
@@ -60,6 +61,9 @@ function UserDashboard() {
 
   // Listen for storage events to handle multi-tab session changes
   // Removed strict cross-tab logout enforcement to allow multi-role isolation
+
+  // Safety return for unauthorized access (after hooks)
+  if (!user || user.role !== 'user') return null;
 
   return (
     <div className="dashboard-container">

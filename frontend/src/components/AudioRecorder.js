@@ -104,7 +104,11 @@ const AudioRecorder = ({ userId, onUploadSuccess }) => {
                 setAudioUrl(`data:audio/mpeg;base64,${base64String}`);
             }
 
-            toast.success('Audio processed and Case created!');
+            if (data.caseId) {
+                toast.success('Audio processed and Case created!');
+            } else {
+                toast.error('Audio uploaded, but automatic case creation failed. Please check My Cases or contact support.');
+            }
             if (onUploadSuccess) {
                 onUploadSuccess(data);
             }

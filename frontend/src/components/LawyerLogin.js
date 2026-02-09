@@ -88,6 +88,7 @@ function LawyerLogin() {
           </button>
         </form>
         <div className="login-footer">
+          <p>Don't have an account? <a href="/lawyer-register">Register here</a></p>
           <p>Are you a user? <a href="/user-login">Login here</a></p>
         </div>
       </div>

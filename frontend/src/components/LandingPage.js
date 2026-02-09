@@ -11,7 +11,7 @@ function LandingPage() {
           <h1 className="hero-title">LegalConnect</h1>
           <p className="hero-subtitle">Your Trusted Legal Consultation Platform</p>
           <p className="hero-description">
-            Connect with experienced lawyers, book appointments, and get expert legal advice 
+            Connect with experienced lawyers, book appointments, and get expert legal advice
             with privacy-protected audio processing.
           </p>
           <div className="hero-buttons">
@@ -34,8 +34,8 @@ function LandingPage() {
               <div className="feature-icon">🎤</div>
               <h3>Audio Processing</h3>
               <p>
-                Record and upload your legal concerns. Our AI-powered system processes 
-                your audio with privacy protection, masking personal information while 
+                Record and upload your legal concerns. Our AI-powered system processes
+                your audio with privacy protection, masking personal information while
                 preserving case details.
               </p>
             </div>
@@ -43,7 +43,7 @@ function LandingPage() {
               <div className="feature-icon">📅</div>
               <h3>Easy Booking</h3>
               <p>
-                Book appointments with qualified lawyers at your convenience. 
+                Book appointments with qualified lawyers at your convenience.
                 Choose from video calls, phone consultations, or in-person meetings.
               </p>
             </div>
@@ -51,7 +51,7 @@ function LandingPage() {
               <div className="feature-icon">🔒</div>
               <h3>Privacy Protected</h3>
               <p>
-                Your personal information is automatically masked using advanced AI, 
+                Your personal information is automatically masked using advanced AI,
                 ensuring your privacy while maintaining case context.
               </p>
             </div>
@@ -59,7 +59,7 @@ function LandingPage() {
               <div className="feature-icon">🌐</div>
               <h3>Multi-Language</h3>
               <p>
-                Support for English and Gujarati languages. Record in your preferred 
+                Support for English and Gujarati languages. Record in your preferred
                 language and get translations automatically.
               </p>
             </div>
@@ -67,7 +67,7 @@ function LandingPage() {
               <div className="feature-icon">⚖️</div>
               <h3>Expert Lawyers</h3>
               <p>
-                Connect with verified lawyers specializing in various areas of law, 
+                Connect with verified lawyers specializing in various areas of law,
                 from criminal to family law.
               </p>
             </div>
@@ -75,7 +75,7 @@ function LandingPage() {
               <div className="feature-icon">💬</div>
               <h3>Secure Communication</h3>
               <p>
-                All communications are encrypted and secure. Your data is protected 
+                All communications are encrypted and secure. Your data is protected
                 throughout the entire consultation process.
               </p>
             </div>
@@ -140,7 +140,8 @@ function LandingPage() {
           <div className="footer-links">
             <Link to="/user-login">User Login</Link>
             <Link to="/lawyer-login">Lawyer Login</Link>
-            <Link to="/user-register">Register</Link>
+            <Link to="/lawyer-register">Lawyer Register</Link>
+            <Link to="/user-register">User Register</Link>
           </div>
         </div>
       </footer>

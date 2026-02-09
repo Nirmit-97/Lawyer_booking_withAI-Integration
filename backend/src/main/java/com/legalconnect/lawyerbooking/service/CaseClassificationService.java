@@ -81,7 +81,9 @@ public class CaseClassificationService {
             }
         } catch (Exception e) {
             System.out.println("DEBUG: AI Classification error: " + e.getMessage());
-            logger.warn("AI Classification failed, falling back to keywords: {}", e.getMessage());
+            System.err.println("DEBUG: AI Classification error (full stack): ");
+            e.printStackTrace();
+            logger.warn("AI Classification failed, falling back to keywords. Error: {}", e.getMessage(), e);
         }
 
         // 2. Keyword Fallback
