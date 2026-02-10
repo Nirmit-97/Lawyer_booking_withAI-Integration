@@ -72,7 +72,7 @@ export const casesApi = {
     getByLawyer: (lawyerId) => api.get(`/cases/lawyer/${lawyerId}`),
     getUnassigned: () => api.get('/cases/unassigned'),
     getRecommended: (lawyerId) => api.get(`/cases/recommended/${lawyerId}`),
-    assignLawyer: (caseId, lawyerId) => api.post(`/cases/${caseId}/assign`, { lawyerId }),
+    assignLawyer: (caseId, lawyerId, lawyerFee) => api.post(`/cases/${caseId}/assign`, { lawyerId, lawyerFee }),
     updateSolution: (caseId, solution) => api.put(`/cases/${caseId}/solution`, { solution }),
     updateStatus: (caseId, status) => api.put(`/cases/${caseId}/status`, { status }),
 };
@@ -100,6 +100,11 @@ export const messagesApi = {
     send: (messageData) => api.post('/messages/send', messageData),
     getByCase: (caseId) => api.get(`/messages/case/${caseId}`),
     markRead: (messageId) => api.put(`/messages/${messageId}/read`),
+};
+
+export const paymentApi = {
+    createOrder: (caseId) => api.post(`/payments/create-order/${caseId}`),
+    verifyPayment: (data) => api.post('/payments/verify', data),
 };
 
 export default api;

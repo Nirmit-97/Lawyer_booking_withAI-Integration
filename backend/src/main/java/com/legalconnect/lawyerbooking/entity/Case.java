@@ -19,6 +19,9 @@ public class Case {
     @Column(name = "lawyer_id")
     private Long lawyerId;
 
+    @Column(name = "lawyer_fee")
+    private Double lawyerFee;
+
     @Column(name = "case_title", nullable = false, length = 255)
     private String caseTitle;
 
@@ -83,6 +86,14 @@ public class Case {
 
     public void setLawyerId(Long lawyerId) {
         this.lawyerId = lawyerId;
+    }
+
+    public Double getLawyerFee() {
+        return lawyerFee;
+    }
+
+    public void setLawyerFee(Double lawyerFee) {
+        this.lawyerFee = lawyerFee;
     }
 
     public String getCaseTitle() {

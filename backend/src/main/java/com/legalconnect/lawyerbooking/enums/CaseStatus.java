@@ -5,5 +5,8 @@ public enum CaseStatus {
     IN_PROGRESS,
     CLOSED,
     ON_HOLD,
-    VERIFIED
+    VERIFIED,
+    PAYMENT_PENDING,
+    PAYMENT_RECEIVED,
+    PAYMENT_FAILED
 }

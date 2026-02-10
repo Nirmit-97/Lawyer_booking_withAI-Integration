@@ -13,6 +13,7 @@ public class CaseDTO {
     private CaseStatus caseStatus;
     private String description;
     private String solution;
+    private Double lawyerFee;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -21,7 +22,7 @@ public class CaseDTO {
 
     public CaseDTO(Long id, Long userId, Long lawyerId, String caseTitle,
                    CaseType caseType, CaseStatus caseStatus, String description, 
-                   String solution, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   String solution, Double lawyerFee, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.lawyerId = lawyerId;
@@ -30,6 +31,7 @@ public class CaseDTO {
         this.caseStatus = caseStatus;
         this.description = description;
         this.solution = solution;
+        this.lawyerFee = lawyerFee;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -112,6 +114,14 @@ public class CaseDTO {
 
     public void setSolution(String solution) {
         this.solution = solution;
+    }
+
+    public Double getLawyerFee() {
+        return lawyerFee;
+    }
+
+    public void setLawyerFee(Double lawyerFee) {
+        this.lawyerFee = lawyerFee;
     }
 
 

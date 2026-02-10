@@ -143,7 +143,7 @@ public class CaseService {
     }
 
     @org.springframework.transaction.annotation.Transactional
-    public CaseDTO assignLawyerToCase(Long caseId, Long lawyerId) {
+    public CaseDTO assignLawyerToCase(Long caseId, Long lawyerId, Double lawyerFee) {
         Case caseEntity = caseRepository.findById(caseId)
             .orElseThrow(() -> new ResourceNotFoundException("Case not found with id: " + caseId));
             
@@ -176,7 +176,10 @@ public class CaseService {
         }
 
         caseEntity.setLawyerId(lawyerId);
-        caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
+        caseEntity.setLawyerFee(lawyerFee != null ? lawyerFee : 0.0);
+        // Requirement: "Lawyer accepts the case request -> User sees payment screen"
+        // So status becomes PAYMENT_PENDING, not IN_PROGRESS yet.
+        caseEntity.setCaseStatus(CaseStatus.PAYMENT_PENDING);
         Case updated = caseRepository.save(caseEntity);
         CaseDTO dto = convertToDTO(updated);
 
@@ -275,6 +278,7 @@ public class CaseService {
             caseEntity.getCaseStatus(),
             caseEntity.getDescription(),
             caseEntity.getSolution(),
+            caseEntity.getLawyerFee(),
             caseEntity.getCreatedAt(),
             caseEntity.getUpdatedAt()
         );

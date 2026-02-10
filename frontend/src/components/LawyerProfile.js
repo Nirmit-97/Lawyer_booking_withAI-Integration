@@ -325,6 +325,17 @@ const LawyerProfile = ({ lawyerId: propLawyerId, onUpdate }) => {
           </div>
 
           <div style={styles.formGroup}>
+            <label style={styles.label}>UPI ID (For Payouts)</label>
+            <input
+              style={styles.input}
+              name="upiId"
+              placeholder="e.g. mobile@upi"
+              value={formData.upiId || ""}
+              onChange={handleInputChange}
+            />
+          </div>
+
+          <div style={styles.formGroup}>
             <label style={styles.label}>Profile Photo URL</label>
             <input
               style={styles.input}

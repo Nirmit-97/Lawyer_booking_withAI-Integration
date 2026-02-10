@@ -190,9 +190,19 @@ function LawyerDashboard() {
 
     const connectToCase = useCallback(async (caseId) => {
         if (!lawyerId) return;
+
+        // Prompt for fee
+        const feeStr = window.prompt("Enter your consultation fee (INR):", "500");
+        if (feeStr === null) return; // Cancelled
+        const fee = parseFloat(feeStr);
+        if (isNaN(fee) || fee < 0) {
+            toast.error("Invalid fee amount.");
+            return;
+        }
+
         try {
-            await casesApi.assignLawyer(caseId, lawyerId);
-            toast.success('Successfully connected to case!');
+            await casesApi.assignLawyer(caseId, lawyerId, fee);
+            toast.success(`Successfully connected to case with fee ₹${fee}!`);
 
             // Immediate local cleanup to prevent double-click or stale display
             setUnassignedCases(prev => prev.filter(c => c.id !== caseId));
@@ -202,7 +212,7 @@ function LawyerDashboard() {
             fetchRecords(); // Refresh Audio button states
         } catch (err) {
             console.error('Error connecting to case:', err);
-            toast.error('Error connecting to case');
+            toast.error('Error connecting to case: ' + (err.response?.data?.message || err.message));
         }
     }, [lawyerId, fetchCases, fetchRecords]);
 
@@ -233,10 +243,14 @@ function LawyerDashboard() {
 
             if (!newCase || !newCase.id) throw new Error("Failed to create case");
 
-            // 2. Assign Lawyer
-            await casesApi.assignLawyer(newCase.id, lawyerId);
+            // Prompt for fee (since we are auto-assigning)
+            const feeStr = window.prompt("Enter your consultation fee (INR) for this new case:", "500");
+            const fee = (feeStr !== null && !isNaN(parseFloat(feeStr))) ? parseFloat(feeStr) : 500.0;
 
-            toast.success("Case created and assigned successfully!");
+            // 2. Assign Lawyer
+            await casesApi.assignLawyer(newCase.id, lawyerId, fee);
+
+            toast.success(`Case created and assigned successfully (Fee: ₹${fee})!`);
             const caseId = newCase.id;
 
             // 3. Clear from pools immediately

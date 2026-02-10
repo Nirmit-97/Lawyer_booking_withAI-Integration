@@ -143,9 +143,11 @@ public class CaseController {
             @PathVariable("caseId") Long caseId,
             @RequestBody Map<String, Long> request) {
         try {
-            Long lawyerId = request.get("lawyerId");
+            Long lawyerId = Long.valueOf(request.get("lawyerId").toString());
+            Double lawyerFee = request.containsKey("lawyerFee") ? Double.valueOf(request.get("lawyerFee").toString()) : 0.0;
+            
             authorizationService.verifyLawyerAccess(lawyerId);
-            CaseDTO caseDTO = caseService.assignLawyerToCase(caseId, lawyerId);
+            CaseDTO caseDTO = caseService.assignLawyerToCase(caseId, lawyerId, lawyerFee);
             return ResponseEntity.ok(caseDTO);
         } catch (UnauthorizedException e) {
             logger.warn("Unauthorized in assignLawyerToCase: {}", e.getMessage());

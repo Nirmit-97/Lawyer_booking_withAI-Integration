@@ -44,6 +44,9 @@ public class Lawyer {
     @Column(name = "rating")
     private Double rating;
 
+    @Column(name = "upi_id")
+    private String upiId;
+
     @Column(name = "completed_cases_count")
     private Integer completedCasesCount;
 
@@ -105,6 +108,9 @@ public class Lawyer {
 
     public Double getRating() { return rating; }
     public void setRating(Double rating) { this.rating = rating; }
+
+    public String getUpiId() { return upiId; }
+    public void setUpiId(String upiId) { this.upiId = upiId; }
 
     public Integer getCompletedCasesCount() { return completedCasesCount; }
     public void setCompletedCasesCount(Integer completedCasesCount) { this.completedCasesCount = completedCasesCount; }

@@ -3,6 +3,7 @@ import UserCaseMessages from './UserCaseMessages';
 import LawyerProfile from './LawyerProfile';
 import { casesApi } from '../utils/api';
 import { toast } from 'react-toastify';
+import PaymentButton from './PaymentButton';
 
 const CaseDetail = ({ caseId, userType, userId, lawyerId, onBack }) => {
     const [caseData, setCaseData] = useState(null);
@@ -88,13 +89,46 @@ const CaseDetail = ({ caseId, userType, userId, lawyerId, onBack }) => {
                     <span style={{
                         padding: '6px 12px',
                         borderRadius: '20px',
-                        background: caseData.caseStatus === 'open' ? '#e3f2fd' : '#e8f5e9',
-                        color: caseData.caseStatus === 'open' ? '#1976d2' : '#2e7d32',
+                        background: caseData.caseStatus === 'open' ? '#e3f2fd' :
+                            caseData.caseStatus === 'payment_pending' ? '#fff3e0' :
+                                caseData.caseStatus === 'payment_received' ? '#e8f5e9' : '#e8f5e9',
+                        color: caseData.caseStatus === 'open' ? '#1976d2' :
+                            caseData.caseStatus === 'payment_pending' ? '#ef6c00' :
+                                caseData.caseStatus === 'payment_received' ? '#2e7d32' : '#2e7d32',
                         fontWeight: 'bold'
                     }}>
-                        {caseData.caseStatus.toUpperCase()}
+                        {caseData.caseStatus.toUpperCase().replace('_', ' ')}
                     </span>
                 </div>
+                {/* Payment Section */}
+                {!isLawyer && caseData.caseStatus.toUpperCase() === 'PAYMENT_PENDING' && (
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#fff8e1', border: '1px solid #ffecb3', borderRadius: '8px' }}>
+                        <p style={{ margin: '0 0 10px 0', color: '#f57f17' }}><strong>Action Required:</strong> Please pay the consultation fee to proceed.</p>
+
+                        <div style={{ margin: '10px 0', padding: '10px', background: 'white', borderRadius: '5px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Lawyer Consultation Fee:</span>
+                                <span>₹{caseData.lawyerFee || 500}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666', fontSize: '0.9em' }}>
+                                <span>Platform Fee (10%):</span>
+                                <span>₹{((caseData.lawyerFee || 500) * 0.10).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px solid #eee', marginTop: '5px', paddingTop: '5px' }}>
+                                <span>Total Amount:</span>
+                                <span>₹{((caseData.lawyerFee || 500) * 1.10).toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <PaymentButton caseId={caseId} onPaymentSuccess={fetchCaseDetails} />
+                    </div>
+                )}
+                {caseData.caseStatus.toUpperCase() === 'PAYMENT_RECEIVED' && (
+                    <div style={{ marginTop: '20px', padding: '15px', background: '#f1f8e9', border: '1px solid #dcedc8', borderRadius: '8px' }}>
+                        <p style={{ margin: 0, color: '#33691e' }}><strong>Payment Received!</strong> You can now consult with the lawyer.</p>
+                    </div>
+                )}
+
                 <p style={{ color: '#666', marginTop: '10px' }}>
                     <strong>Case ID:</strong> {caseData.id} |
                     <strong> Created:</strong> {new Date(caseData.createdAt).toLocaleString()}
