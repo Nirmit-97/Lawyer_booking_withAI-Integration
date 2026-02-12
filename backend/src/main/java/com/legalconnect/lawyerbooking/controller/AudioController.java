@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.legalconnect.lawyerbooking.service.AudioProcessingService;
 import com.legalconnect.lawyerbooking.repository.ClientAudioRepository;
@@ -42,11 +43,14 @@ public class AudioController {
     public ResponseEntity<?> uploadAudio(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "userId", required = false) Long userId,
-            @RequestParam(value = "caseTitle", required = false) String caseTitle) {
+            @RequestParam(value = "caseTitle", required = false) String caseTitle,
+            @RequestParam(value = "lawyerId", required = false) Long lawyerId,
+            HttpServletRequest request) {
 
-        System.out.println("API ENTRY: POST /api/audio/upload for user: " + userId + " (file: " + (file != null ? file.getOriginalFilename() : "null") + ")");
+        System.out.println("API ENTRY: POST /api/audio/upload for user: " + userId + " (file: " + (file != null ? file.getOriginalFilename() : "null") + ") with lawyer: " + lawyerId);
         try {
-            if (!rateLimitService.tryConsumeAi()) {
+            String rateLimitKey = (userId != null) ? userId.toString() : request.getRemoteAddr();
+            if (!rateLimitService.tryConsumeAi(rateLimitKey)) {
                 return ResponseEntity.status(429).body("{\"error\": \"Rate limit exceeded for AI video/audio processing. Please try again later.\"}");
             }
 
@@ -63,21 +67,10 @@ public class AudioController {
             }
 
             // Using the refactored, robust method from AudioProcessingService
-            ClientAudio saved = audioService.processAndCreateCase(file, userId, caseTitle);
+            ClientAudio saved = audioService.processAndCreateCase(file, userId, caseTitle, lawyerId);
             
-            // Convert to DTO to include masked audio as Base64
-            ClientAudioDTO dto = new ClientAudioDTO(
-                saved.getId(),
-                saved.getLanguage(),
-                saved.getOriginalEnglishText(),
-                saved.getMaskedEnglishText(),
-                saved.getMaskedTextAudio(),
-                saved.getMaskedGujaratiText(),
-                saved.getMaskedGujaratiAudio(),
-                saved.getUserId(),
-                saved.getCaseId(),
-                saved.getLawyerId()
-            );
+            // Convert to DTO using service helper to include caseTitle and masked audio
+            ClientAudioDTO dto = audioService.convertToDTO(saved);
             
             System.out.println("Returning DTO with masked audio: " + 
                 (dto.getMaskedTextAudioBase64() != null ? 
@@ -155,18 +148,7 @@ public class AudioController {
             ", Gujarati masked audio: " + (record.getMaskedGujaratiAudio() != null ? 
                 record.getMaskedGujaratiAudio().length + " bytes" : "null"));
         
-        ClientAudioDTO dto = new ClientAudioDTO(
-            record.getId(),
-            record.getLanguage(),
-            record.getOriginalEnglishText(),
-            record.getMaskedEnglishText(),
-            record.getMaskedTextAudio(),
-            record.getMaskedGujaratiText(),
-            record.getMaskedGujaratiAudio(),
-            record.getUserId(),
-            record.getCaseId(),
-            record.getLawyerId()
-        );
+        ClientAudioDTO dto = audioService.convertToDTO(record);
         
         return ResponseEntity.ok(dto);
     }

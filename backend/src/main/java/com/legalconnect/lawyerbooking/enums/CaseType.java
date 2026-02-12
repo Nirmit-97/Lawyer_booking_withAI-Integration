@@ -13,5 +13,6 @@ public enum CaseType {
     TAX,
     CYBER,
     CYBER_CRIME,
+    IMMIGRATION,
     OTHER
 }

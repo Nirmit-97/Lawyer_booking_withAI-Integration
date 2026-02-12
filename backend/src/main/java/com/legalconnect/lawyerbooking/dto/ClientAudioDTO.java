@@ -12,6 +12,7 @@ public class ClientAudioDTO {
     private String maskedGujaratiAudioBase64; // Base64 encoded Gujarati audio
     private Long userId;
     private Long caseId;
+    private String caseTitle;
     private Long lawyerId;
 
     // Constructors
@@ -128,6 +129,14 @@ public class ClientAudioDTO {
 
     public void setCaseId(Long caseId) {
         this.caseId = caseId;
+    }
+
+    public String getCaseTitle() {
+        return caseTitle;
+    }
+
+    public void setCaseTitle(String caseTitle) {
+        this.caseTitle = caseTitle;
     }
 
     public Long getLawyerId() {

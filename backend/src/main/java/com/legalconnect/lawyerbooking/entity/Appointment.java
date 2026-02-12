@@ -24,7 +24,10 @@ public class Appointment {
     private Integer durationMinutes = 60;
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "pending"; // pending, confirmed, completed, cancelled
+    private String status = "REQUESTED"; // REQUESTED, CONFIRMED, COMPLETED, CANCELLED, RESCHEDULED, NO_SHOW
+
+    @Column(name = "requested_by_role", length = 10)
+    private String requestedByRole; // user, lawyer
 
     @Column(name = "meeting_type", length = 20)
     private String meetingType = "video"; // in-person, video, phone, audio
@@ -150,6 +153,14 @@ public class Appointment {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getRequestedByRole() {
+        return requestedByRole;
+    }
+
+    public void setRequestedByRole(String requestedByRole) {
+        this.requestedByRole = requestedByRole;
     }
 }
 

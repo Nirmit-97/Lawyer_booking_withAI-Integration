@@ -23,6 +23,10 @@ public class LawyerDTO {
     private String barNumber;
     private String languagesKnown;
     private String profilePhotoUrl;
+    private Boolean verified;
+    private String bio;
+    private String consultationModes;
+    private String notableSuccesses;
     
     // Constructors
     public LawyerDTO() {}
@@ -130,5 +134,37 @@ public class LawyerDTO {
     
     public void setProfilePhotoUrl(String profilePhotoUrl) {
         this.profilePhotoUrl = profilePhotoUrl;
+    }
+
+    public Boolean isVerified() {
+        return verified;
+    }
+    
+    public void setVerified(Boolean verified) {
+        this.verified = verified;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getConsultationModes() {
+        return consultationModes;
+    }
+
+    public void setConsultationModes(String consultationModes) {
+        this.consultationModes = consultationModes;
+    }
+
+    public String getNotableSuccesses() {
+        return notableSuccesses;
+    }
+
+    public void setNotableSuccesses(String notableSuccesses) {
+        this.notableSuccesses = notableSuccesses;
     }
 }

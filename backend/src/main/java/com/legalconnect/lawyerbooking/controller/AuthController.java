@@ -10,6 +10,7 @@ import com.legalconnect.lawyerbooking.dto.LoginResponse;
 import com.legalconnect.lawyerbooking.dto.RegistrationRequest;
 import com.legalconnect.lawyerbooking.dto.RegistrationResponse;
 import com.legalconnect.lawyerbooking.dto.LawyerRegistrationRequest;
+import com.legalconnect.lawyerbooking.dto.TokenRefreshRequest;
 import com.legalconnect.lawyerbooking.service.AuthService;
 import com.legalconnect.lawyerbooking.exception.BadRequestException;
 import com.legalconnect.lawyerbooking.exception.UnauthorizedException;
@@ -45,6 +46,11 @@ public class AuthController {
     @PostMapping("/admin/login")
     public ResponseEntity<LoginResponse> adminLogin(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.loginAdmin(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
     
     // Exception Handlers specific to Auth if GlobalExceptionHandler doesn't cover them perfectly yet

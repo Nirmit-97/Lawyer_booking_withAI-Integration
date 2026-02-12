@@ -7,6 +7,7 @@ public class CaseRequest {
     private String caseTitle;
     private CaseType caseType;
     private String description;
+    private Long lawyerId;
 
     // Constructors
     public CaseRequest() {}
@@ -18,7 +19,22 @@ public class CaseRequest {
         this.description = description;
     }
 
+    public CaseRequest(Long userId, String caseTitle, CaseType caseType, String description, Long lawyerId) {
+        this.userId = userId;
+        this.caseTitle = caseTitle;
+        this.caseType = caseType;
+        this.description = description;
+        this.lawyerId = lawyerId;
+    }
+
     // Getters and Setters
+    public Long getLawyerId() {
+        return lawyerId;
+    }
+
+    public void setLawyerId(Long lawyerId) {
+        this.lawyerId = lawyerId;
+    }
     public Long getUserId() {
         return userId;
     }

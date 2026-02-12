@@ -35,16 +35,44 @@ public class CaseController {
     @Autowired
     private com.legalconnect.lawyerbooking.repository.LawyerRepository lawyerRepository;
 
-    @PostMapping("/create")
+    @PostMapping
     public ResponseEntity<CaseDTO> createCase(@RequestBody CaseRequest request) {
         try {
-            CaseDTO caseDTO = caseService.createCase(request);
-            return ResponseEntity.ok(caseDTO);
-        } catch (com.legalconnect.lawyerbooking.exception.BadRequestException e) {
-            return ResponseEntity.badRequest().build();
+            logger.info("Creating new case for user: {}", request.getUserId());
+            CaseDTO created = caseService.createCase(request);
+            logger.info("Case created successfully with ID: {}", created.getId());
+            return ResponseEntity.ok(created);
         } catch (Exception e) {
             logger.error("Error creating case: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
+            throw e;
+        }
+    }
+
+    @PutMapping("/{caseId}/publish")
+    public ResponseEntity<CaseDTO> publishCase(@PathVariable("caseId") Long caseId) {
+        try {
+            logger.info("Publishing case ID: {}", caseId);
+            CaseDTO published = caseService.publishCase(caseId);
+            logger.info("Case {} published successfully", caseId);
+            return ResponseEntity.ok(published);
+        } catch (Exception e) {
+            logger.error("Error publishing case {}: {}", caseId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @PutMapping("/{caseId}")
+    public ResponseEntity<CaseDTO> updateCase(
+            @PathVariable("caseId") Long caseId,
+            @RequestBody CaseRequest request) {
+        try {
+            logger.info("Updating case ID: {}", caseId);
+            CaseDTO updated = caseService.updateCase(caseId, request);
+            logger.info("Case {} updated successfully", caseId);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            logger.error("Error updating case {}: {}", caseId, e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -109,11 +137,8 @@ public class CaseController {
             com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
             
             if ("lawyer".equalsIgnoreCase(currentUser.getRole())) {
-                List<CaseDTO> cases = caseService.getCasesForLawyer(currentUser.getUserId());
-                // Only return unassigned ones if that's the intended endpoint behavior
-                return ResponseEntity.ok(cases.stream()
-                    .filter(c -> c.getLawyerId() == null)
-                    .collect(Collectors.toList()));
+                // For lawyers, return cases that match their specializations and are unassigned
+                return ResponseEntity.ok(caseService.getRecommendedCases(currentUser.getUserId()));
             }
             
             // For Admin or non-lawyers, return all unassigned cases via service
@@ -144,7 +169,7 @@ public class CaseController {
             @RequestBody Map<String, Long> request) {
         try {
             Long lawyerId = request.get("lawyerId");
-            authorizationService.verifyLawyerAccess(lawyerId);
+            authorizationService.verifyCaseAssignmentAction(caseId, lawyerId);
             CaseDTO caseDTO = caseService.assignLawyerToCase(caseId, lawyerId);
             return ResponseEntity.ok(caseDTO);
         } catch (UnauthorizedException e) {
@@ -155,12 +180,47 @@ public class CaseController {
         }
     }
 
+    @PostMapping("/{caseId}/accept")
+    public ResponseEntity<CaseDTO> acceptCase(@PathVariable("caseId") Long caseId) {
+        try {
+            CaseDTO caseDTO = caseService.acceptCaseRequest(caseId);
+            return ResponseEntity.ok(caseDTO);
+        } catch (com.legalconnect.lawyerbooking.exception.UnauthorizedException e) {
+            return ResponseEntity.status(401).build();
+        } catch (com.legalconnect.lawyerbooking.exception.BadRequestException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/{caseId}/decline")
+    public ResponseEntity<CaseDTO> declineCase(@PathVariable("caseId") Long caseId) {
+        try {
+            CaseDTO caseDTO = caseService.declineCaseRequest(caseId);
+            return ResponseEntity.ok(caseDTO);
+        } catch (com.legalconnect.lawyerbooking.exception.UnauthorizedException e) {
+            return ResponseEntity.status(401).build();
+        } catch (com.legalconnect.lawyerbooking.exception.BadRequestException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
     @PutMapping("/{caseId}/solution")
     public ResponseEntity<CaseDTO> updateCaseSolution(
             @PathVariable("caseId") Long caseId,
             @RequestBody Map<String, String> request) {
         try {
             authorizationService.verifyCaseUpdateAccess(caseId);
+            
+            // Explicitly require lawyer role for solution updates
+            if (!authorizationService.getCurrentUser().getRole().equalsIgnoreCase("lawyer")) {
+                logger.warn("User {} attempted to update solution for case {}", 
+                           authorizationService.getCurrentUser().getUserId(), caseId);
+                return ResponseEntity.status(403).build();
+            }
             
             String solution = request.get("solution");
             CaseDTO caseDTO = caseService.updateCaseSolution(caseId, solution);

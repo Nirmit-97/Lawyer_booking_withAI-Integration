@@ -4,6 +4,8 @@
 *.log
 *.env
 .DS_Store
+node_modules/
+package-lock.json
 
 # Backend (Maven)
 backend/target/
@@ -13,6 +15,7 @@ backend/mvnw.cmd
 backend/.settings/
 backend/.project/
 backend/.classpath/
+backend/uploads/
 
 # Frontend (Node/React)
 frontend/node_modules/

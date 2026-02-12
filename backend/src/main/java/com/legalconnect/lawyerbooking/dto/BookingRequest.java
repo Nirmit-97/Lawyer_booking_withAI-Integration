@@ -27,6 +27,8 @@ public class BookingRequest {
 
     private Long caseId;
 
+    private String requestedByRole; // user, lawyer
+
     // Getters and Setters
     public Long getCaseId() {
         return caseId;
@@ -81,6 +83,14 @@ public class BookingRequest {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getRequestedByRole() {
+        return requestedByRole;
+    }
+
+    public void setRequestedByRole(String requestedByRole) {
+        this.requestedByRole = requestedByRole;
     }
 }
 

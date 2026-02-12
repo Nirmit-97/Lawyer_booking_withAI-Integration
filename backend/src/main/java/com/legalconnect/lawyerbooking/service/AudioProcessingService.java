@@ -79,8 +79,8 @@ public class AudioProcessingService {
                 .collect(Collectors.toList());
     }
 
-    private ClientAudioDTO convertToDTO(ClientAudio ca) {
-        return new ClientAudioDTO(
+    public ClientAudioDTO convertToDTO(ClientAudio ca) {
+        ClientAudioDTO dto = new ClientAudioDTO(
             ca.getId(),
             ca.getLanguage(),
             ca.getOriginalEnglishText(),
@@ -92,6 +92,20 @@ public class AudioProcessingService {
             ca.getCaseId(),
             ca.getLawyerId()
         );
+
+        if (ca.getCaseId() != null) {
+            try {
+                // Fetch case title to replace log identification with something descriptive
+                CaseDTO caseDTO = caseService.getCaseById(ca.getCaseId());
+                if (caseDTO != null) {
+                    dto.setCaseTitle(caseDTO.getCaseTitle());
+                }
+            } catch (Exception e) {
+                logger.warn("Could not fetch case title for audio record {}: {}", ca.getId(), e.getMessage());
+            }
+        }
+        
+        return dto;
     }
 
     /**
@@ -102,13 +116,13 @@ public class AudioProcessingService {
      * @return The processed and saved ClientAudio entity
      */
     @Transactional
-    public ClientAudio processAndCreateCase(MultipartFile audio, Long userId, String caseTitle) {
+    public ClientAudio processAndCreateCase(MultipartFile audio, Long userId, String caseTitle, Long lawyerId) {
         // Core Processing Phase
         ClientAudio clientAudio = processAudioPipeline(audio, userId);
 
         // Case Creation Phase
         if (userId != null) {
-            linkToCase(clientAudio, userId, caseTitle, audio.getOriginalFilename());
+            linkToCase(clientAudio, userId, caseTitle, audio.getOriginalFilename(), lawyerId);
         } else {
             logger.warn("UserId is null, skipping case creation for audio ID: {}", clientAudio.getId());
         }
@@ -118,11 +132,11 @@ public class AudioProcessingService {
     
     // Legacy method support if needed, or redirect to main flow
     public ClientAudio process(MultipartFile audio) {
-        return processAndCreateCase(audio, null, null);
+        return processAndCreateCase(audio, null, null, null);
     }
     
     public ClientAudio process(MultipartFile audio, Long userId) {
-        return processAndCreateCase(audio, userId, null);
+        return processAndCreateCase(audio, userId, null, null);
     }
 
     private ClientAudio processAudioPipeline(MultipartFile audio, Long userId) {
@@ -136,10 +150,13 @@ public class AudioProcessingService {
             // 2. Masking
             String maskedEnglish = maskPersonalInfo(originalEnglish);
 
-            // 3. Audio & Translation Generation (Parallelizable in future)
-            byte[] maskedTextAudio = generateEnglishAudio(maskedEnglish);
+            // 3. Translation (Keep translation text, but skip audio)
             String maskedGujarati = translateToGujarati(maskedEnglish);
-            byte[] maskedGujaratiAudio = generateGujaratiAudio(maskedGujarati);
+            
+            // TTS is now generated ON-DEMAND via TTSController to save costs.
+            // We initialize with null audio bytes.
+            byte[] maskedTextAudio = null;
+            byte[] maskedGujaratiAudio = null;
 
             // 4. Persistence
             return saveClientAudio(userId, originalEnglish, maskedEnglish, 
@@ -177,34 +194,12 @@ public class AudioProcessingService {
         return masked;
     }
 
-    private byte[] generateEnglishAudio(String text) {
-        logger.debug("Step 3: Generating English TTS...");
-        try {
-            return textToSpeechService.textToSpeech(text, "en");
-        } catch (Exception e) {
-            logger.error("English TTS failed", e);
-            return null; // Non-blocking failure
-        }
-    }
-
     private String translateToGujarati(String text) {
         logger.debug("Step 4: Translating to Gujarati...");
         try {
             return translationService.translateToGujarati(text);
         } catch (Exception e) {
             logger.error("Gujarati translation failed", e);
-            return null; // Non-blocking failure
-        }
-    }
-
-    private byte[] generateGujaratiAudio(String text) {
-        if (text == null || text.trim().isEmpty()) return null;
-        
-        logger.debug("Step 5: Generating Gujarati TTS...");
-        try {
-            return textToSpeechService.textToSpeech(text, "gu");
-        } catch (Exception e) {
-            logger.error("Gujarati TTS failed", e);
             return null; // Non-blocking failure
         }
     }
@@ -222,15 +217,23 @@ public class AudioProcessingService {
         return repository.save(ca);
     }
 
-    private void linkToCase(ClientAudio clientAudio, Long userId, String caseTitle, String fileName) {
+    private void linkToCase(ClientAudio clientAudio, Long userId, String caseTitle, String fileName, Long lawyerId) {
         try {
-            String title = (caseTitle != null && !caseTitle.trim().isEmpty()) 
-                ? caseTitle 
-                : "Case from Audio - " + (fileName != null ? fileName : "recording");
+            String title = caseTitle;
+            
+            if (title == null || title.trim().isEmpty()) {
+                logger.debug("Step 5.5: Generating AI Title...");
+                title = classificationService.generateTitle(clientAudio.getMaskedEnglishText());
+                
+                if (title == null) {
+                    title = "Case from Audio - " + (fileName != null ? fileName : "recording");
+                }
+            }
 
             CaseRequest caseRequest = new CaseRequest();
             caseRequest.setUserId(userId);
             caseRequest.setCaseTitle(title);
+            caseRequest.setLawyerId(lawyerId);
             
             // 6. Classification
             logger.debug("Step 6: Classifying case category...");

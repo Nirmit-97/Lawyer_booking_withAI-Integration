@@ -100,6 +100,50 @@ public class BookingController {
         }
     }
 
+    // Admin: Get all appointments
+    @GetMapping("/admin/all")
+    public ResponseEntity<?> getAllAppointments(
+            @RequestHeader(value = "X-Admin-Id", required = false) Long adminId) {
+        try {
+            if (adminId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "Admin authorization required"));
+            }
+
+            List<AppointmentDTO> appointments = bookingService.getAllAppointments();
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            System.err.println("Error fetching all appointments: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("success", false, "message", "Internal server error"));
+        }
+    }
+
+    // Admin: Delete appointment
+    @DeleteMapping("/admin/{appointmentId}")
+    public ResponseEntity<?> deleteAppointment(
+            @PathVariable Long appointmentId,
+            @RequestHeader(value = "X-Admin-Id", required = false) Long adminId) {
+        try {
+            if (adminId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "Admin authorization required"));
+            }
+
+            bookingService.deleteAppointment(appointmentId);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Appointment deleted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("Error deleting appointment: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("success", false, "message", "Internal server error"));
+        }
+    }
+
     @GetMapping("/{appointmentId}")
     public ResponseEntity<AppointmentDTO> getAppointment(@PathVariable Long appointmentId) {
         try {
@@ -135,14 +179,18 @@ public class BookingController {
     @PutMapping("/{appointmentId}/cancel")
     public ResponseEntity<BookingResponse> cancelAppointment(
             @PathVariable("appointmentId") Long appointmentId,
-            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Lawyer-Id", required = false) Long lawyerId) {
         try {
-            if (userId == null) {
+            String role = (lawyerId != null) ? "lawyer" : "user";
+            Long id = (lawyerId != null) ? lawyerId : userId;
+
+            if (id == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new BookingResponse(false, "User ID is required"));
+                    .body(new BookingResponse(false, "Identity verification failed."));
             }
 
-            AppointmentDTO appointment = bookingService.cancelAppointment(appointmentId, userId);
+            AppointmentDTO appointment = bookingService.cancelAppointment(appointmentId, id, role);
             return ResponseEntity.ok(new BookingResponse(true, "Appointment cancelled successfully", appointment));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -159,14 +207,18 @@ public class BookingController {
     public ResponseEntity<BookingResponse> updateAppointment(
             @PathVariable Long appointmentId,
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Lawyer-Id", required = false) Long lawyerId,
             @Valid @RequestBody BookingRequest request) {
         try {
-            if (userId == null) {
+            String role = (lawyerId != null) ? "lawyer" : "user";
+            Long id = (lawyerId != null) ? lawyerId : userId;
+
+            if (id == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new BookingResponse(false, "User ID is required"));
+                    .body(new BookingResponse(false, "Identity verification failed."));
             }
 
-            AppointmentDTO appointment = bookingService.updateAppointment(appointmentId, userId, request);
+            AppointmentDTO appointment = bookingService.updateAppointment(appointmentId, id, role, request);
             return ResponseEntity.ok(new BookingResponse(true, "Appointment updated successfully", appointment));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -182,21 +234,64 @@ public class BookingController {
     @PutMapping("/{appointmentId}/confirm")
     public ResponseEntity<BookingResponse> confirmAppointment(
             @PathVariable("appointmentId") Long appointmentId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Lawyer-Id", required = false) Long lawyerId) {
         try {
-            if (lawyerId == null) {
+            String role = (lawyerId != null) ? "lawyer" : "user";
+            Long id = (lawyerId != null) ? lawyerId : userId;
+
+            if (id == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new BookingResponse(false, "Lawyer ID is required"));
+                    .body(new BookingResponse(false, "Identity verification failed."));
             }
 
-            AppointmentDTO appointment = bookingService.confirmAppointment(appointmentId, lawyerId);
-            return ResponseEntity.ok(new BookingResponse(true, "Appointment confirmed successfully", appointment));
+            AppointmentDTO appointment = bookingService.confirmAppointment(appointmentId, id, role);
+            return ResponseEntity.ok(new BookingResponse(true, "Authentication successful: Appointment CONFIRMED", appointment));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new BookingResponse(false, e.getMessage()));
         } catch (Exception e) {
-            System.err.println("Error confirming appointment: " + e.getMessage());
-            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new BookingResponse(false, "Internal server error: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{appointmentId}/reschedule")
+    public ResponseEntity<BookingResponse> rescheduleAppointment(
+            @PathVariable("appointmentId") Long appointmentId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-Lawyer-Id", required = false) Long lawyerId,
+            @Valid @RequestBody BookingRequest request) {
+        try {
+            String role = (lawyerId != null) ? "lawyer" : "user";
+            Long id = (lawyerId != null) ? lawyerId : userId;
+
+            if (id == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new BookingResponse(false, "Identity verification failed."));
+            }
+
+            AppointmentDTO appointment = bookingService.proposeReschedule(appointmentId, id, role, request);
+            return ResponseEntity.ok(new BookingResponse(true, "Reschedule proposal recorded.", appointment));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new BookingResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new BookingResponse(false, "Internal server error: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{appointmentId}/complete")
+    public ResponseEntity<BookingResponse> completeAppointment(
+            @PathVariable("appointmentId") Long appointmentId) {
+        try {
+            AppointmentDTO appointment = bookingService.completeAppointment(appointmentId);
+            return ResponseEntity.ok(new BookingResponse(true, "Appointment marked as COMPLETED.", appointment));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new BookingResponse(false, e.getMessage()));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new BookingResponse(false, "Internal server error: " + e.getMessage()));
         }

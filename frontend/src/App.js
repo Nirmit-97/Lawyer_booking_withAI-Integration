@@ -4,6 +4,7 @@ import LandingPage from './components/LandingPage';
 import UserLogin from './components/UserLogin';
 import UserRegistration from './components/UserRegistration';
 import LawyerLogin from './components/LawyerLogin';
+import LawyerRegistration from './components/LawyerRegistration';
 import UserDashboard from './components/UserDashboard';
 import LawyerDashboard from './components/LawyerDashboard';
 import LawyerProfile from './components/LawyerProfile';
@@ -28,6 +29,7 @@ function App() {
             <Route path="/user-login" element={<UserLogin />} />
             <Route path="/user-register" element={<UserRegistration />} />
             <Route path="/lawyer-login" element={<LawyerLogin />} />
+            <Route path="/lawyer-register" element={<LawyerRegistration />} />
             <Route path="/admin/login" element={<AdminLogin />} />
 
             {/* Protected User Routes */}

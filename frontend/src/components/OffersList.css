@@ -1,0 +1,245 @@
+.offers-list {
+    margin: 20px 0;
+}
+
+.offers-list h3 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.offers-loading,
+.offers-error {
+    padding: 20px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+.offers-error {
+    background-color: #fee;
+    color: #c33;
+}
+
+.no-offers {
+    padding: 40px;
+    text-align: center;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    color: #666;
+}
+
+.offers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.offer-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.offer-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.offer-card.accepted {
+    border-color: #4caf50;
+    background-color: #f1f8f4;
+}
+
+.offer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.lawyer-info h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.specialization {
+    margin: 5px 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.lawyer-meta {
+    display: flex;
+    gap: 15px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+}
+
+.experience,
+.rating {
+    color: #777;
+}
+
+.rating {
+    color: #ff9800;
+}
+
+.view-profile-link {
+    background: none;
+    border: none;
+    color: #2196f3;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    margin-left: auto;
+}
+
+.view-profile-link:hover {
+    color: #1976d2;
+}
+
+.offer-status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-submitted {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.badge-accepted {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge-rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.badge-expired {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.badge-funded {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.offer-details {
+    margin-top: 15px;
+}
+
+.fee-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.fee-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.fee-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2196f3;
+}
+
+.timeline-section,
+.consultation-type {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.timeline-label,
+.type-label {
+    font-weight: 600;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.timeline-value,
+.type-value {
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.proposal-message {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #fafafa;
+    border-left: 3px solid #2196f3;
+    border-radius: 4px;
+}
+
+.message-label {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.message-text {
+    color: #333;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.offer-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    font-size: 0.85rem;
+    color: #777;
+}
+
+.accept-offer-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.accept-offer-btn:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+.accept-offer-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .offers-grid {
+        grid-template-columns: 1fr;
+    }
+}

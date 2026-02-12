@@ -14,7 +14,7 @@ public interface ClientAudioRepository extends JpaRepository<ClientAudio, Long> 
     List<ClientAudio> findForUser(@Param("userId") Long userId);
 
     @org.springframework.data.jpa.repository.Query("SELECT ca FROM ClientAudio ca JOIN ca.caseEntity c " +
-           "WHERE c.deleted = false AND (c.lawyerId = :lawyerId OR (c.lawyerId IS NULL AND c.caseType IN :specializations))")
+           "WHERE c.deleted = false AND c.lawyerId IS NULL AND c.caseType IN :specializations")
     List<ClientAudio> findForLawyer(@Param("lawyerId") Long lawyerId, 
                                     @Param("specializations") java.util.Collection<com.legalconnect.lawyerbooking.enums.CaseType> specializations);
 

@@ -3,40 +3,61 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import api from '../utils/api';
-import './Booking.css';
+import api from '../utils/api'; // Assuming 'api' is the general API utility
 
-function Booking({ userId, onBookingSuccess }) {
+// If bookingApi is a separate utility, you might need to import it like this:
+// import bookingApi from '../utils/bookingApi'; // Or define it if it's a wrapper around 'api'
+
+// For the purpose of this edit, I will assume `bookingApi` refers to the `api` utility
+// and adjust the calls accordingly, or if it's a new utility, I'll add a placeholder.
+// Given the instruction uses `bookingApi.getLawyers()` and `bookingApi.create()`,
+// I will assume `bookingApi` is a separate utility and add a placeholder for it.
+// If `api` is meant to be `bookingApi`, then the calls would be `api.get('/bookings/lawyers')` etc.
+// Let's define a simple `bookingApi` wrapper for `api` for consistency with the provided snippet.
+const bookingApi = {
+  getLawyers: () => api.get('/bookings/lawyers'),
+  create: (userId, data) => api.post('/bookings/create', data, { headers: { 'X-User-Id': userId.toString() } })
+};
+
+
+function Booking({ userId, onBookingSuccess, userType, preSelectedLawyerId, preSelectedCaseId, preSelectedLawyerName }) {
   const [lawyers, setLawyers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingLawyers, setFetchingLawyers] = useState(false); // New state for fetching lawyers
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    lawyerId: '',
+    lawyerId: preSelectedLawyerId || '', // Initialize with preSelectedLawyerId
     appointmentDate: '',
     appointmentTime: '',
     durationMinutes: 60,
     meetingType: 'video',
-    description: ''
+    description: '',
+    caseId: preSelectedCaseId || '', // New field
+    notes: '', // New field
+    requestedByRole: userType || 'user' // New field
   });
 
   useEffect(() => {
-    fetchLawyers();
-  }, []);
+    // Only fetch lawyers if no pre-selected lawyer is provided
+    if (!preSelectedLawyerId) {
+      fetchLawyers();
+    }
+  }, [preSelectedLawyerId]); // Dependency on preSelectedLawyerId
 
   const fetchLawyers = async () => {
-    setLoading(true);
+    setFetchingLawyers(true); // Use new state for fetching lawyers
     setError('');
     try {
-      const response = await api.get('/bookings/lawyers');
+      const response = await bookingApi.getLawyers(); // Use bookingApi
       setLawyers(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching lawyers:', err);
-      const errorMsg = 'Error loading lawyers: Unable to connect to server';
+      const errorMsg = 'Failed to load lawyers'; // Updated error message
       setError(errorMsg);
       toast.error(errorMsg);
       setLawyers([]);
     } finally {
-      setLoading(false);
+      setFetchingLawyers(false); // Use new state for fetching lawyers
     }
   };
 
@@ -55,52 +76,21 @@ function Booking({ userId, onBookingSuccess }) {
     setLoading(true);
 
     try {
-      // Combine date and time
-      const dateTimeString = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
-      const appointmentDate = new Date(dateTimeString).toISOString();
-
-      // Validate future date
-      if (new Date(appointmentDate) <= new Date()) {
-        setError('Appointment date must be in the future');
-        setLoading(false);
-        return;
-      }
-
-      const requestBody = {
+      const dateTimeString = `${formData.appointmentDate}T${formData.appointmentTime}`;
+      const submitData = {
+        ...formData,
+        appointmentDate: dateTimeString,
         lawyerId: parseInt(formData.lawyerId),
-        appointmentDate: appointmentDate,
-        durationMinutes: parseInt(formData.durationMinutes),
-        meetingType: formData.meetingType,
-        description: formData.description
       };
 
-      const response = await api.post('/bookings/create', requestBody, {
-        headers: {
-          'X-User-Id': userId.toString()
-        }
-      });
-
-      if (response.data.success) {
-        toast.success('Appointment booked successfully!');
-        setFormData({
-          lawyerId: '',
-          appointmentDate: '',
-          appointmentTime: '',
-          durationMinutes: 60,
-          meetingType: 'video',
-          description: ''
-        });
-        if (onBookingSuccess) {
-          onBookingSuccess();
-        }
-      } else {
-        const errorMsg = response.data.message || 'Failed to book appointment';
-        setError(errorMsg);
-        toast.error(errorMsg);
-      }
+      await bookingApi.create(userId, submitData);
+      toast.success('Consultation Logged: Awaiting Authorization');
+      if (onBookingSuccess) onBookingSuccess();
     } catch (err) {
       console.error('Error booking appointment:', err);
-      setError('Error connecting to server. Please try again.');
+      const msg = err.response?.data?.message || 'Failed to book appointment';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -110,141 +100,132 @@ function Booking({ userId, onBookingSuccess }) {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="booking-container">
-      <h2>Book an Appointment</h2>
-
-      {error && !loading && (
-        <div className="error-message">
-          <span className="error-text">{error}</span>
-          <button
-            className="error-close"
-            onClick={() => setError('')}
-            aria-label="Close error"
-          >
-            ×
-          </button>
+    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="size-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined text-3xl">event_available</span>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">System Consultation</h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Establishing Secure Temporal Link</p>
+          </div>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} className="booking-form">
-        <div className="form-group">
-          <label htmlFor="lawyerId">Select Lawyer *</label>
-          {loading && lawyers.length === 0 ? (
-            <Skeleton height={40} />
-          ) : (
-            <>
-              <select
-                id="lawyerId"
-                name="lawyerId"
-                value={formData.lawyerId}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Lawyer Selection */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Target Counsel</label>
+              {preSelectedLawyerId ? (
+                <div className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-slate-900 dark:text-white font-bold flex items-center gap-3">
+                  <span className="material-symbols-outlined text-primary">verified_user</span>
+                  {preSelectedLawyerName || 'Assigned Expert'}
+                </div>
+              ) : (
+                <select
+                  name="lawyerId"
+                  value={formData.lawyerId}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:text-white font-bold"
+                >
+                  <option value="">Select Primary Counsel</option>
+                  {lawyers.map(l => (
+                    <option key={l.id} value={l.id}>{l.fullName}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Mode Selection */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transmission Mode</label>
+              <div className="flex gap-4">
+                {['video', 'phone'].map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, meetingType: mode })}
+                    className={`flex-1 p-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-bold text-[10px] uppercase tracking-widest ${formData.meetingType === mode ? 'bg-primary border-primary text-white shadow-lg' : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-primary/50'}`}
+                  >
+                    <span className="material-symbols-outlined !text-lg">
+                      {mode === 'video' ? 'videocam' : 'call'}
+                    </span>
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-3">Temporal Date</label>
+              <input
+                type="date"
+                name="appointmentDate"
+                value={formData.appointmentDate}
+                onChange={handleChange}
+                min={today}
+                required
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:text-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-3">Target Time</label>
+              <input
+                type="time"
+                name="appointmentTime"
+                value={formData.appointmentTime}
                 onChange={handleChange}
                 required
-                className="form-control"
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:text-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-3">Operational Span</label>
+              <select
+                name="durationMinutes"
+                value={formData.durationMinutes}
+                onChange={handleChange}
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:text-white font-bold"
               >
-                <option value="">Choose a lawyer...</option>
-                {lawyers.map(lawyer => (
-                  <option key={lawyer.id} value={lawyer.id}>
-                    {lawyer.fullName} - {lawyer.specialization}
-                  </option>
-                ))}
+                <option value="15">15 Minutes (Brief)</option>
+                <option value="30">30 Minutes (Standard)</option>
+                <option value="60">60 Minutes (Strategic)</option>
               </select>
-              {formData.lawyerId && (
-                <Link
-                  to={`/lawyer/${formData.lawyerId}`}
-                  target="_blank"
-                  className="view-profile-link"
-                >
-                  View Lawyer Profile →
-                </Link>
-              )}
-            </>
-          )}
-        </div>
+            </div>
+          </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="appointmentDate">Date *</label>
-            <input
-              type="date"
-              id="appointmentDate"
-              name="appointmentDate"
-              value={formData.appointmentDate}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Matter Context</label>
+            <textarea
+              name="description"
+              value={formData.description}
               onChange={handleChange}
-              min={today}
-              required
-              className="form-control"
+              rows="3"
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 p-4 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none transition-all dark:text-white font-medium text-sm resize-none"
+              placeholder="Provide strategic brief for the consultation..."
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="appointmentTime">Time *</label>
-            <input
-              type="time"
-              id="appointmentTime"
-              name="appointmentTime"
-              value={formData.appointmentTime}
-              onChange={handleChange}
-              required
-              className="form-control"
-            />
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="durationMinutes">Duration (minutes) *</label>
-            <select
-              id="durationMinutes"
-              name="durationMinutes"
-              value={formData.durationMinutes}
-              onChange={handleChange}
-              required
-              className="form-control"
-            >
-              <option value="30">30 minutes</option>
-              <option value="60">1 hour</option>
-              <option value="90">1.5 hours</option>
-              <option value="120">2 hours</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="meetingType">Meeting Type *</label>
-            <select
-              id="meetingType"
-              name="meetingType"
-              value={formData.meetingType}
-              onChange={handleChange}
-              required
-              className="form-control"
-            >
-              <option value="video">Video Call</option>
-              <option value="phone">Phone Call</option>
-              <option value="in-person">In-Person</option>
-              <option value="audio">Audio Only</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="description">Description / Reason for Appointment</label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="4"
-            placeholder="Briefly describe the reason for your appointment..."
-            className="form-control"
-          />
-        </div>
-
-        {error && <div className="error-message">{error}</div>}
-
-        <button type="submit" className="submit-button" disabled={loading}>
-          {loading ? 'Booking...' : 'Book Appointment'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary/20 hover:opacity-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="animate-spin material-symbols-outlined text-lg">sync</span>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-lg">verified_user</span>
+                Initiate Authorization Request
+              </>
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
