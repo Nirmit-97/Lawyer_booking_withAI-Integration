@@ -45,32 +45,13 @@ public class OpenAITextToSpeechService {
      * @return Byte array containing the audio data (MP3 format)
      */
     public byte[] textToSpeech(String text, String languageCode) {
-        return textToSpeech(text, languageCode, "MALE");
-    }
-
-    /**
-     * Converts text to speech using OpenAI TTS API with specified language and gender
-     * @param text The text to convert to speech
-     * @param languageCode Language code (e.g., "en" for English, "gu" for Gujarati)
-     * @param gender Detected gender ("MALE" or "FEMALE")
-     * @return Byte array containing the audio data (MP3 format)
-     */
-    public byte[] textToSpeech(String text, String languageCode, String gender) {
         if (text == null || text.trim().isEmpty()) {
             throw new IllegalArgumentException("Text cannot be null or empty");
         }
 
         try {
-            // Determine voice based on gender
-            String voice = "alloy"; // default
-            if ("MALE".equalsIgnoreCase(gender)) {
-                voice = "onyx";
-            } else if ("FEMALE".equalsIgnoreCase(gender)) {
-                voice = "nova";
-            }
-
             // Build the JSON request body
-            String requestBody = buildTTSRequest(text, voice);
+            String requestBody = buildTTSRequest(text, languageCode);
 
             RequestBody body = RequestBody.create(
                     requestBody,
@@ -85,34 +66,54 @@ public class OpenAITextToSpeechService {
                     .build();
 
             try (Response response = client.newCall(request).execute()) {
+                logger.debug("OpenAI TTS Response Status: {}", response.code());
+
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "No error body";
                     logger.error("OpenAI TTS Error (Status {}): {}", response.code(), errorBody);
                     throw new RuntimeException("OpenAI TTS API call failed: " + response.code() + " - " + errorBody);
                 }
 
+                // TTS API returns audio bytes directly
                 if (response.body() != null) {
-                    return response.body().bytes();
+                    byte[] audioBytes = response.body().bytes();
+                    logger.info("Successfully generated audio: {} bytes", audioBytes.length);
+                    return audioBytes;
                 } else {
+                    logger.error("OpenAI TTS API returned empty response body");
                     throw new RuntimeException("OpenAI TTS API returned empty response body");
                 }
+
             } catch (IOException e) {
                 logger.error("Error processing OpenAI TTS response", e);
-                throw new RuntimeException("Failed to process TTS response", e);
+                throw new RuntimeException("Failed to process TTS response: " + e.getMessage(), e);
             }
 
         } catch (Exception e) {
             logger.error("Error calling OpenAI TTS API", e);
-            throw new RuntimeException("Text-to-speech conversion failed", e);
+            throw new RuntimeException("Text-to-speech conversion failed: " + e.getMessage(), e);
         }
     }
 
-    private String buildTTSRequest(String text, String voice) throws Exception {
+    /**
+     * Builds the JSON request body for OpenAI TTS API
+     * @param text The text to convert to speech
+     * @param languageCode Language code (e.g., "en" for English, "gu" for Gujarati)
+     * @return JSON string for the request
+     */
+    private String buildTTSRequest(String text, String languageCode) throws Exception {
+        // Using tts-1 model (high quality) - you can also use tts-1-hd for even better quality
+        // Voice options: alloy, echo, fable, onyx, nova, shimmer
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", "tts-1");
         requestJson.put("input", text);
-        requestJson.put("voice", voice); // Use the selected voice
+        
+        // Select voice based on language - using "nova" for Gujarati as it works well with Indian languages
+        // For English, keep "alloy" as default
+        String voice = "gu".equals(languageCode) ? "nova" : "alloy";
+        requestJson.put("voice", voice);
         requestJson.put("response_format", "mp3");
+        
         return mapper.writeValueAsString(requestJson);
     }
 }

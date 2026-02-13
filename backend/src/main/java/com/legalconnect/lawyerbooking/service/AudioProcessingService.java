@@ -33,7 +33,6 @@ public class AudioProcessingService {
     private final ClientAudioRepository repository;
     private final CaseService caseService;
     private final CaseClassificationService classificationService;
-    private final AudioAnalysisService audioAnalysisService;
     private final LawyerRepository lawyerRepository;
 
     @Autowired
@@ -45,8 +44,7 @@ public class AudioProcessingService {
             ClientAudioRepository repository,
             CaseService caseService,
             CaseClassificationService classificationService,
-            LawyerRepository lawyerRepository,
-            AudioAnalysisService audioAnalysisService) {
+            LawyerRepository lawyerRepository) {
         this.whisperService = whisperService;
         this.maskingService = maskingService;
         this.textToSpeechService = textToSpeechService;
@@ -55,7 +53,6 @@ public class AudioProcessingService {
         this.caseService = caseService;
         this.classificationService = classificationService;
         this.lawyerRepository = lawyerRepository;
-        this.audioAnalysisService = audioAnalysisService;
     }
 
     public List<ClientAudioDTO> getAllAudioForAdmin() {
@@ -153,30 +150,13 @@ public class AudioProcessingService {
             // 2. Masking
             String maskedEnglish = maskPersonalInfo(originalEnglish);
 
-            // 1.5 Gender Detection
-            String gender = "MALE";
-            java.io.File tempFile = null;
-            try {
-                // Create a temporary file to analyze pitch
-                tempFile = java.io.File.createTempFile("audio_analysis_", ".tmp");
-                try (java.io.InputStream in = audio.getInputStream();
-                     java.io.FileOutputStream out = new java.io.FileOutputStream(tempFile)) {
-                    in.transferTo(out);
-                }
-                gender = audioAnalysisService.detectGender(tempFile);
-                logger.debug("Detected Gender: {}", gender);
-            } catch (Exception e) {
-                logger.warn("Gender detection failed, defaulting to MALE: {}", e.getMessage());
-            } finally {
-                if (tempFile != null && tempFile.exists()) {
-                    tempFile.delete();
-                }
-            }
-
-            // 3. Audio & Translation Generation (Parallelizable in future)
-            byte[] maskedTextAudio = generateEnglishAudio(maskedEnglish, gender);
+            // 3. Translation (Keep translation text, but skip audio)
             String maskedGujarati = translateToGujarati(maskedEnglish);
-            byte[] maskedGujaratiAudio = generateGujaratiAudio(maskedGujarati, gender);
+            
+            // TTS is now generated ON-DEMAND via TTSController to save costs.
+            // We initialize with null audio bytes.
+            byte[] maskedTextAudio = null;
+            byte[] maskedGujaratiAudio = null;
 
             // 4. Persistence
             return saveClientAudio(userId, originalEnglish, maskedEnglish, 
@@ -214,34 +194,12 @@ public class AudioProcessingService {
         return masked;
     }
 
-    private byte[] generateEnglishAudio(String text, String gender) {
-        logger.debug("Step 3: Generating English TTS (Voice: {})...", gender);
-        try {
-            return textToSpeechService.textToSpeech(text, "en", gender);
-        } catch (Exception e) {
-            logger.error("English TTS failed", e);
-            return null; // Non-blocking failure
-        }
-    }
-
     private String translateToGujarati(String text) {
         logger.debug("Step 4: Translating to Gujarati...");
         try {
             return translationService.translateToGujarati(text);
         } catch (Exception e) {
             logger.error("Gujarati translation failed", e);
-            return null; // Non-blocking failure
-        }
-    }
-
-    private byte[] generateGujaratiAudio(String text, String gender) {
-        if (text == null || text.trim().isEmpty()) return null;
-        
-        logger.debug("Step 5: Generating Gujarati TTS (Voice: {})...", gender);
-        try {
-            return textToSpeechService.textToSpeech(text, "gu", gender);
-        } catch (Exception e) {
-            logger.error("Gujarati TTS failed", e);
             return null; // Non-blocking failure
         }
     }
@@ -304,18 +262,24 @@ public class AudioProcessingService {
             }
             caseRequest.setDescription(description);
 
+            System.out.println(">>> [STEP 7] Triggering CaseService.createCase for user: " + userId);
             logger.info("Step 7: Creating case via CaseService for user {}...", userId);
             CaseDTO caseDTO = caseService.createCase(caseRequest);
             
             if (caseDTO != null && caseDTO.getId() != null) {
+                System.out.println(">>> [STEP 8] Case created SUCCESSFULLY! ID: " + caseDTO.getId());
                 logger.info("Step 8: Successfully created case ID: {}", caseDTO.getId());
                 clientAudio.setCaseId(caseDTO.getId());
                 repository.save(clientAudio);
+                System.out.println(">>> [STEP 9] Audio linked to Case ID: " + caseDTO.getId());
                 logger.info("Step 9: Linked audio ID {} to new Case ID {}", clientAudio.getId(), caseDTO.getId());
             } else {
+                System.err.println(">>> [STEP 8 FAIL] CaseDTO is NULL or missing ID!");
                 logger.error("Step 8 FAIL: CaseService returned null or DTO with no ID!");
             }
         } catch (Exception e) {
+            System.err.println(">>> [AUDIO PROCESSING ERROR] " + e.getMessage());
+            e.printStackTrace();
             logger.error("Failed to create/link case for user {}: {}", userId, e.getMessage(), e);
             // We do NOT throw here to preserve the saved audio
         }
