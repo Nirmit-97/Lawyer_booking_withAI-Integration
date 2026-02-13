@@ -22,7 +22,7 @@ public class Case {
     @Column(name = "case_title", nullable = false, length = 255)
     private String caseTitle;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseTypeConverter.class)
     @Column(name = "case_type", length = 50)
     private CaseType caseType;
 
@@ -31,7 +31,7 @@ public class Case {
     private CaseStatus caseStatus = CaseStatus.DRAFT; 
 
     @Column(name = "deleted", nullable = false)
-    private boolean deleted = false;
+    private Boolean deleted = false;
 
     @Lob
     @Column(name = "description", columnDefinition = "LONGTEXT")
@@ -50,7 +50,7 @@ public class Case {
     private Long selectedOfferId; // FK to offers table (accepted offer)
 
     @Column(name = "offer_count", nullable = false)
-    private int offerCount = 0; // Denormalized count for performance
+    private Integer offerCount = 0; // Denormalized count for performance
 
     @PrePersist
     protected void onCreate() {
@@ -58,6 +58,12 @@ public class Case {
         updatedAt = LocalDateTime.now();
         if (caseStatus == null) {
             caseStatus = CaseStatus.DRAFT;
+        }
+        if (deleted == null) {
+             deleted = false;
+        }
+        if (offerCount == null) {
+             offerCount = 0;
         }
     }
 
@@ -115,11 +121,11 @@ public class Case {
         this.caseStatus = caseStatus;
     }
 
-    public boolean isDeleted() {
+    public Boolean getDeleted() {
         return deleted;
     }
 
-    public void setDeleted(boolean deleted) {
+    public void setDeleted(Boolean deleted) {
         this.deleted = deleted;
     }
 
@@ -163,11 +169,11 @@ public class Case {
         this.selectedOfferId = selectedOfferId;
     }
 
-    public int getOfferCount() {
+    public Integer getOfferCount() {
         return offerCount;
     }
 
-    public void setOfferCount(int offerCount) {
+    public void setOfferCount(Integer offerCount) {
         this.offerCount = offerCount;
     }
 }

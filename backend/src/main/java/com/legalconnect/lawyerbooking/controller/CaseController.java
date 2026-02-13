@@ -152,7 +152,7 @@ public class CaseController {
     }
 
     @GetMapping("/recommended/{lawyerId}")
-    public ResponseEntity<List<CaseDTO>> getRecommendedCases(@PathVariable Long lawyerId) {
+    public ResponseEntity<List<CaseDTO>> getRecommendedCases(@PathVariable("lawyerId") Long lawyerId) {
         try {
             authorizationService.verifyLawyerAccess(lawyerId);
             List<CaseDTO> cases = caseService.getRecommendedCases(lawyerId);

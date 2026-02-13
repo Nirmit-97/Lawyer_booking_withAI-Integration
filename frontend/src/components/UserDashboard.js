@@ -24,7 +24,8 @@ function UserDashboard() {
   const userId = user?.id ? parseInt(user.id) : null;
 
   // Safety return for unauthorized access
-  if (!user || user.role !== 'user') return null;
+  // Safety return moved to bottom to prevent Hook errors
+
 
   const fetchCases = useCallback(async () => {
     if (!userId) return;
@@ -239,6 +240,9 @@ function UserDashboard() {
         return <div className="p-8 text-center text-slate-400 font-bold uppercase tracking-widest">Vault Under Development</div>;
     }
   };
+
+  // Safety return for unauthorized access
+  if (!user || user.role !== 'user') return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-display selection:bg-primary/10">

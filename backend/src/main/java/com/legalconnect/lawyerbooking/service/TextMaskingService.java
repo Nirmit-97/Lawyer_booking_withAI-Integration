@@ -20,16 +20,16 @@ public class TextMaskingService {
     @Value("${openai.api.key}")
     private String apiKey;
 
-    private static final String CHAT_COMPLETIONS_URL =
-            "https://api.openai.com/v1/chat/completions";
+    private static final String CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
             .build();
-    
-    // Maximum tokens for input (gpt-4o-mini supports ~128k, but we'll use a safe limit)
+
+    // Maximum tokens for input (gpt-4o-mini supports ~128k, but we'll use a safe
+    // limit)
     private static final int MAX_INPUT_TOKENS = 100000; // Safe limit for context window
     private static final int CHUNK_SIZE = 50000; // Characters per chunk (roughly ~12k tokens)
     private static final int OVERLAP_SIZE = 500; // Overlap to avoid splitting in middle of sentences
@@ -38,7 +38,7 @@ public class TextMaskingService {
 
     private static final String MASKING_PROMPT = """
             You are a privacy protection assistant. Your task is to mask ONLY personal information in the given legal case text, while preserving ALL case-related information.
-            
+
             MASK these personal information types:
             - Names of people (first names, last names, full names)
             - Phone numbers (any format)
@@ -47,7 +47,7 @@ public class TextMaskingService {
             - Aadhar numbers, PAN numbers, or other government ID numbers
             - Dates of birth
             - Any other personally identifiable information (PII)
-            
+
             PRESERVE these case-related information:
             - Case details, facts, and circumstances
             - Legal issues and problems described
@@ -55,7 +55,7 @@ public class TextMaskingService {
             - Case numbers or reference numbers
             - Legal terminology and descriptions
             - All other information related to the case itself
-            
+
             Replacement rules:
             - Replace names with [NAME_MASKED]
             - Replace phone numbers with [PHONE_MASKED]
@@ -64,15 +64,17 @@ public class TextMaskingService {
             - Replace ID numbers with [ID_MASKED]
             - Replace dates of birth with [DOB_MASKED]
             - For other PII, use [PII_MASKED]
-            
+
             Important: Maintain the original sentence structure, grammar, and flow. Only replace the personal information with the appropriate mask tokens. Do not change any case-related information, legal facts, or case descriptions.
-            
+
             Text to mask:
             """;
 
     /**
-     * Uses OpenAI GPT to intelligently mask personal information while preserving case information
+     * Uses OpenAI GPT to intelligently mask personal information while preserving
+     * case information
      * Handles long texts by chunking if necessary
+     * 
      * @param text The original text containing both personal and case information
      * @return Text with personal information masked but case information preserved
      */
@@ -108,8 +110,7 @@ public class TextMaskingService {
 
             RequestBody body = RequestBody.create(
                     requestBody,
-                    MediaType.parse("application/json; charset=utf-8")
-            );
+                    MediaType.parse("application/json; charset=utf-8"));
 
             Request request = new Request.Builder()
                     .url(CHAT_COMPLETIONS_URL)
@@ -146,6 +147,15 @@ public class TextMaskingService {
                     JsonNode firstChoice = json.get("choices").get(0);
                     if (firstChoice.has("message") && firstChoice.get("message").has("content")) {
                         String maskedText = firstChoice.get("message").get("content").asText().trim();
+
+                        // Check if GPT says no masking is needed
+                        if (maskedText.toLowerCase().contains("does not contain any personal information") ||
+                                maskedText.toLowerCase().contains("no personal information") ||
+                                maskedText.toLowerCase().contains("no changes are necessary")) {
+                            logger.info("No PII detected, returning original text");
+                            return text;
+                        }
+
                         logger.info("Successfully masked text using OpenAI NLP (length: {})", maskedText.length());
                         return maskedText;
                     }
@@ -176,28 +186,29 @@ public class TextMaskingService {
 
         while (processed < totalLength) {
             int chunkEnd = Math.min(processed + CHUNK_SIZE, totalLength);
-            
+
             // Try to break at sentence boundary if not at end
             if (chunkEnd < totalLength) {
                 int lastPeriod = text.lastIndexOf('.', chunkEnd);
                 int lastNewline = text.lastIndexOf('\n', chunkEnd);
                 int breakPoint = Math.max(lastPeriod, lastNewline);
-                
+
                 if (breakPoint > processed + CHUNK_SIZE / 2) {
                     chunkEnd = breakPoint + 1;
                 }
             }
 
             String chunk = text.substring(processed, chunkEnd);
-            logger.debug("Processing chunk {} (chars {}-{} of {})", 
-                        processed / CHUNK_SIZE + 1, processed, chunkEnd, totalLength);
+            logger.debug("Processing chunk {} (chars {}-{} of {})",
+                    processed / CHUNK_SIZE + 1, processed, chunkEnd, totalLength);
 
             String maskedChunk = maskTextChunk(chunk);
             maskedResult.append(maskedChunk);
 
             // Move forward, with overlap to avoid missing context
             processed = chunkEnd - OVERLAP_SIZE;
-            if (processed < 0) processed = chunkEnd;
+            if (processed < 0)
+                processed = chunkEnd;
         }
 
         return maskedResult.toString();
@@ -209,7 +220,7 @@ public class TextMaskingService {
     private String buildChatRequest(String text) throws Exception {
         // Using gpt-4o-mini for cost-effective and fast NLP-based masking
         String model = "gpt-4o-mini";
-        
+
         String fullPrompt = MASKING_PROMPT + text;
 
         // Calculate max_tokens dynamically based on input length
@@ -217,30 +228,32 @@ public class TextMaskingService {
         // Set max_tokens to be at least as long as input (in tokens) + buffer
         int estimatedInputTokens = text.length() / 4;
         int maxTokens = Math.max(estimatedInputTokens + 500, 2000); // At least 2000, or input length + buffer
-        // Cap at model's max output tokens (gpt-4o-mini supports up to 16384 output tokens)
+        // Cap at model's max output tokens (gpt-4o-mini supports up to 16384 output
+        // tokens)
         maxTokens = Math.min(maxTokens, 16000);
 
-        logger.debug("Building request: input length={} chars, estimated tokens={}, max_output_tokens={}", 
-                    text.length(), estimatedInputTokens, maxTokens);
+        logger.debug("Building request: input length={} chars, estimated tokens={}, max_output_tokens={}",
+                text.length(), estimatedInputTokens, maxTokens);
 
         // Build JSON using Jackson ObjectMapper for robustness
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", model);
-        
+
         ArrayNode messages = mapper.createArrayNode();
-        
+
         // System message
         ObjectNode systemMessage = mapper.createObjectNode();
         systemMessage.put("role", "system");
-        systemMessage.put("content", "You are a privacy protection assistant that masks personal information while preserving legal case details.");
+        systemMessage.put("content",
+                "You are a privacy protection assistant that masks personal information while preserving legal case details.");
         messages.add(systemMessage);
-        
+
         // User message with the prompt and text
         ObjectNode userMessage = mapper.createObjectNode();
         userMessage.put("role", "user");
         userMessage.put("content", fullPrompt);
         messages.add(userMessage);
-        
+
         requestJson.set("messages", messages);
         requestJson.put("temperature", 0.1); // Low temperature for consistent masking
         requestJson.put("max_tokens", maxTokens); // Dynamic based on input length
@@ -248,4 +261,3 @@ public class TextMaskingService {
         return mapper.writeValueAsString(requestJson);
     }
 }
-

@@ -34,6 +34,7 @@ public class AudioProcessingService {
     private final CaseService caseService;
     private final CaseClassificationService classificationService;
     private final LawyerRepository lawyerRepository;
+    private final GenderDetectionService genderDetectionService;
 
     @Autowired
     public AudioProcessingService(
@@ -44,7 +45,8 @@ public class AudioProcessingService {
             ClientAudioRepository repository,
             CaseService caseService,
             CaseClassificationService classificationService,
-            LawyerRepository lawyerRepository) {
+            LawyerRepository lawyerRepository,
+            GenderDetectionService genderDetectionService) {
         this.whisperService = whisperService;
         this.maskingService = maskingService;
         this.textToSpeechService = textToSpeechService;
@@ -53,6 +55,7 @@ public class AudioProcessingService {
         this.caseService = caseService;
         this.classificationService = classificationService;
         this.lawyerRepository = lawyerRepository;
+        this.genderDetectionService = genderDetectionService;
     }
 
     public List<ClientAudioDTO> getAllAudioForAdmin() {
@@ -69,8 +72,9 @@ public class AudioProcessingService {
 
     public List<ClientAudioDTO> getAudioForLawyer(Long lawyerId) {
         var lawyer = lawyerRepository.findById(lawyerId)
-                .orElseThrow(() -> new com.legalconnect.lawyerbooking.exception.ResourceNotFoundException("Lawyer not found"));
-        
+                .orElseThrow(() -> new com.legalconnect.lawyerbooking.exception.ResourceNotFoundException(
+                        "Lawyer not found"));
+
         java.util.Set<CaseType> specs = lawyer.getSpecializations();
         // If no specs, they might only see audio for cases explicitly assigned to them
         // The JPQL handles this if we pass the specs (even if empty)
@@ -81,17 +85,16 @@ public class AudioProcessingService {
 
     public ClientAudioDTO convertToDTO(ClientAudio ca) {
         ClientAudioDTO dto = new ClientAudioDTO(
-            ca.getId(),
-            ca.getLanguage(),
-            ca.getOriginalEnglishText(),
-            ca.getMaskedEnglishText(),
-            ca.getMaskedTextAudio(),
-            ca.getMaskedGujaratiText(),
-            ca.getMaskedGujaratiAudio(),
-            ca.getUserId(),
-            ca.getCaseId(),
-            ca.getLawyerId()
-        );
+                ca.getId(),
+                ca.getLanguage(),
+                ca.getOriginalEnglishText(),
+                ca.getMaskedEnglishText(),
+                ca.getMaskedTextAudio(),
+                ca.getMaskedGujaratiText(),
+                ca.getMaskedGujaratiAudio(),
+                ca.getUserId(),
+                ca.getCaseId(),
+                ca.getLawyerId());
 
         if (ca.getCaseId() != null) {
             try {
@@ -104,14 +107,16 @@ public class AudioProcessingService {
                 logger.warn("Could not fetch case title for audio record {}: {}", ca.getId(), e.getMessage());
             }
         }
-        
+
         return dto;
     }
 
     /**
-     * Orchestrates the full audio processing workflow, including case creation if userId is present.
-     * @param audio The uploaded audio file
-     * @param userId The ID of the uploading user (optional)
+     * Orchestrates the full audio processing workflow, including case creation if
+     * userId is present.
+     * 
+     * @param audio     The uploaded audio file
+     * @param userId    The ID of the uploading user (optional)
      * @param caseTitle The title for the created case (optional)
      * @return The processed and saved ClientAudio entity
      */
@@ -129,42 +134,57 @@ public class AudioProcessingService {
 
         return clientAudio;
     }
-    
+
     // Legacy method support if needed, or redirect to main flow
     public ClientAudio process(MultipartFile audio) {
         return processAndCreateCase(audio, null, null, null);
     }
-    
+
     public ClientAudio process(MultipartFile audio, Long userId) {
         return processAndCreateCase(audio, userId, null, null);
     }
 
     private ClientAudio processAudioPipeline(MultipartFile audio, Long userId) {
         try {
-            logger.info("Starting audio pipeline for file: {} (size: {} bytes)", 
-                       audio.getOriginalFilename(), audio.getSize());
+            logger.info("Starting audio pipeline for file: {} (size: {} bytes)",
+                    audio.getOriginalFilename(), audio.getSize());
 
-            // 1. Transcription
+            // 1. Gender Detection
+            String gender = detectGender(audio);
+
+            // 2. Transcription
             String originalEnglish = transcribeAudio(audio);
 
-            // 2. Masking
+            // 3. Masking
             String maskedEnglish = maskPersonalInfo(originalEnglish);
 
-            // 3. Translation (Keep translation text, but skip audio)
+            // 4. Translation (Keep translation text, but skip audio)
             String maskedGujarati = translateToGujarati(maskedEnglish);
-            
+
             // TTS is now generated ON-DEMAND via TTSController to save costs.
             // We initialize with null audio bytes.
             byte[] maskedTextAudio = null;
             byte[] maskedGujaratiAudio = null;
 
-            // 4. Persistence
-            return saveClientAudio(userId, originalEnglish, maskedEnglish, 
-                                 maskedTextAudio, maskedGujarati, maskedGujaratiAudio);
+            // 5. Persistence
+            return saveClientAudio(userId, originalEnglish, maskedEnglish,
+                    maskedTextAudio, maskedGujarati, maskedGujaratiAudio, gender);
 
         } catch (Exception e) {
             logger.error("Audio pipeline failed: {}", e.getMessage(), e);
             throw new AudioProcessingException("Failed to process audio file", e);
+        }
+    }
+
+    private String detectGender(MultipartFile audio) {
+        logger.debug("Step 0: Detecting gender from audio...");
+        try {
+            String detectedGender = genderDetectionService.detectGender(audio);
+            logger.info("✓ Gender detection completed: '{}'", detectedGender);
+            return detectedGender;
+        } catch (Exception e) {
+            logger.error("Gender detection failed, defaulting to NEUTRAL", e);
+            return "NEUTRAL";
         }
     }
 
@@ -174,9 +194,9 @@ public class AudioProcessingService {
         try {
             text = whisperService.translateToEnglish(audio);
         } catch (Exception e) {
-             throw new AudioProcessingException("Whisper transcription failed", e);
+            throw new AudioProcessingException("Whisper transcription failed", e);
         }
-        
+
         if (text == null || text.trim().isEmpty()) {
             throw new AudioProcessingException("Transcription returned empty text");
         }
@@ -204,8 +224,9 @@ public class AudioProcessingService {
         }
     }
 
-    private ClientAudio saveClientAudio(Long userId, String original, String masked, 
-                                      byte[] audioEn, String gujarati, byte[] audioGu) {
+    private ClientAudio saveClientAudio(Long userId, String original, String masked,
+            byte[] audioEn, String gujarati, byte[] audioGu, String gender) {
+        logger.info("Saving ClientAudio with gender: '{}'", gender);
         ClientAudio ca = new ClientAudio();
         ca.setUserId(userId);
         ca.setLanguage("english");
@@ -214,17 +235,20 @@ public class AudioProcessingService {
         ca.setMaskedTextAudio(audioEn);
         ca.setMaskedGujaratiText(gujarati);
         ca.setMaskedGujaratiAudio(audioGu);
-        return repository.save(ca);
+        ca.setGender(gender);
+        ClientAudio saved = repository.save(ca);
+        logger.info("✓ Saved ClientAudio ID: {}, Gender in DB: '{}'", saved.getId(), saved.getGender());
+        return saved;
     }
 
     private void linkToCase(ClientAudio clientAudio, Long userId, String caseTitle, String fileName, Long lawyerId) {
         try {
             String title = caseTitle;
-            
+
             if (title == null || title.trim().isEmpty()) {
                 logger.debug("Step 5.5: Generating AI Title...");
                 title = classificationService.generateTitle(clientAudio.getMaskedEnglishText());
-                
+
                 if (title == null) {
                     title = "Case from Audio - " + (fileName != null ? fileName : "recording");
                 }
@@ -234,11 +258,11 @@ public class AudioProcessingService {
             caseRequest.setUserId(userId);
             caseRequest.setCaseTitle(title);
             caseRequest.setLawyerId(lawyerId);
-            
+
             // 6. Classification
             logger.debug("Step 6: Classifying case category...");
             String category = classificationService.classifyCase(clientAudio.getMaskedEnglishText());
-            
+
             // Map classified category to CaseType enum
             try {
                 if (category != null && !category.trim().isEmpty()) {
@@ -251,12 +275,12 @@ public class AudioProcessingService {
                 logger.warn("Failed to map audio classification '{}' to CaseType, defaulting to OTHER", category);
                 caseRequest.setCaseType(com.legalconnect.lawyerbooking.enums.CaseType.OTHER);
             }
-            
+
             // Generate description safely (max 500 chars)
-            String description = clientAudio.getMaskedEnglishText() != null 
-                ? clientAudio.getMaskedEnglishText() 
-                : "Case created from audio upload";
-            
+            String description = clientAudio.getMaskedEnglishText() != null
+                    ? clientAudio.getMaskedEnglishText()
+                    : "Case created from audio upload";
+
             if (description.length() > 500) {
                 description = description.substring(0, 497) + "...";
             }
@@ -265,7 +289,7 @@ public class AudioProcessingService {
             System.out.println(">>> [STEP 7] Triggering CaseService.createCase for user: " + userId);
             logger.info("Step 7: Creating case via CaseService for user {}...", userId);
             CaseDTO caseDTO = caseService.createCase(caseRequest);
-            
+
             if (caseDTO != null && caseDTO.getId() != null) {
                 System.out.println(">>> [STEP 8] Case created SUCCESSFULLY! ID: " + caseDTO.getId());
                 logger.info("Step 8: Successfully created case ID: {}", caseDTO.getId());

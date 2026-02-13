@@ -103,7 +103,7 @@ public class AuthorizationService {
                 }
             }
             // 3. Ensure case is not deleted (Soft Delete)
-            if (caseEntity.isDeleted()) {
+            if (Boolean.TRUE.equals(caseEntity.getDeleted())) {
                 throw new ResourceNotFoundException("Case not found or deleted");
             }
             
