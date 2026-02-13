@@ -44,19 +44,10 @@ public class CaseService {
     @Autowired
     private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
-    @Autowired
-    private NotificationService notificationService;
-
-    @Autowired
-    private CaseAuditLogService auditLogService;
-
-    @Autowired
-    private TextMaskingService textMaskingService;
-
-    @Autowired
-    private AuthorizationService authorizationService;
-
+    @org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public CaseDTO createCase(CaseRequest request) {
+        logger.info("CaseService.createCase called for User ID: {}, Title: {}", request.getUserId(), request.getCaseTitle());
+        try {
         Case caseEntity = new Case();
         caseEntity.setUserId(request.getUserId());
         caseEntity.setCaseTitle(request.getCaseTitle());
@@ -252,6 +243,12 @@ public class CaseService {
             logger.warn("Could not log audit for case update: {}", e.getMessage());
         }
         
+        } catch (Exception e) {
+            logger.error("CRITICAL: Case creation failed in CaseService!", e);
+            throw e;
+        }
+        
+        CaseDTO dto = null;
         return dto;
     }
 
