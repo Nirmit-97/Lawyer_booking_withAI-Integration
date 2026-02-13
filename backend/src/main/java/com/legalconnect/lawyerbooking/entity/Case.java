@@ -22,13 +22,13 @@ public class Case {
     @Column(name = "case_title", nullable = false, length = 255)
     private String caseTitle;
 
-    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseTypeConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "case_type", length = 50)
     private CaseType caseType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "case_status", length = 50)
-    @Convert(converter = com.legalconnect.lawyerbooking.converter.CaseStatusConverter.class)
-    private CaseStatus caseStatus = CaseStatus.OPEN; 
+    private CaseStatus caseStatus = CaseStatus.DRAFT; 
 
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
@@ -46,12 +46,18 @@ public class Case {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "selected_offer_id")
+    private Long selectedOfferId; // FK to offers table (accepted offer)
+
+    @Column(name = "offer_count", nullable = false)
+    private int offerCount = 0; // Denormalized count for performance
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (caseStatus == null) {
-            caseStatus = CaseStatus.OPEN;
+            caseStatus = CaseStatus.DRAFT;
         }
     }
 
@@ -147,6 +153,22 @@ public class Case {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getSelectedOfferId() {
+        return selectedOfferId;
+    }
+
+    public void setSelectedOfferId(Long selectedOfferId) {
+        this.selectedOfferId = selectedOfferId;
+    }
+
+    public int getOfferCount() {
+        return offerCount;
+    }
+
+    public void setOfferCount(int offerCount) {
+        this.offerCount = offerCount;
     }
 }
 

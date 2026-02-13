@@ -18,13 +18,19 @@ public class LawyerProfileDTO {
     private String availabilityInfo;
     private String barNumber;
     private String email;
+    private String bio;
+    private String consultationModes;
+    private String headline;
+    private Boolean verified;
+    private String experienceTimeline;
+    private String notableSuccesses;
 
     public LawyerProfileDTO() {}
 
     public LawyerProfileDTO(Long id, String fullName, Set<CaseType> specializations,
                             Integer yearsOfExperience, String languagesKnown, Double rating,
                             Integer completedCasesCount, String profilePhotoUrl, String availabilityInfo,
-                            String barNumber, String email) {
+                            String barNumber, String email, String bio, String consultationModes, String headline, Boolean verified, String experienceTimeline, String notableSuccesses) {
         this.id = id;
         this.fullName = fullName;
         this.specializations = specializations;
@@ -36,6 +42,12 @@ public class LawyerProfileDTO {
         this.availabilityInfo = availabilityInfo;
         this.barNumber = barNumber;
         this.email = email;
+        this.bio = bio;
+        this.consultationModes = consultationModes;
+        this.headline = headline;
+        this.verified = verified;
+        this.experienceTimeline = experienceTimeline;
+        this.notableSuccesses = notableSuccesses;
     }
 
     // Getters and Setters
@@ -84,4 +96,22 @@ public class LawyerProfileDTO {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+
+    public String getConsultationModes() { return consultationModes; }
+    public void setConsultationModes(String consultationModes) { this.consultationModes = consultationModes; }
+
+    public String getHeadline() { return headline; }
+    public void setHeadline(String headline) { this.headline = headline; }
+
+    public Boolean isVerified() { return verified; }
+    public void setVerified(Boolean verified) { this.verified = verified; }
+
+    public String getExperienceTimeline() { return experienceTimeline; }
+    public void setExperienceTimeline(String experienceTimeline) { this.experienceTimeline = experienceTimeline; }
+
+    public String getNotableSuccesses() { return notableSuccesses; }
+    public void setNotableSuccesses(String notableSuccesses) { this.notableSuccesses = notableSuccesses; }
 }

@@ -42,8 +42,8 @@ export const AuthProvider = ({ children }) => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [refreshUser]);
 
-    const login = (role, token, data) => {
-        auth.login(role, token, data);
+    const login = (role, token, data, refreshToken) => {
+        auth.login(role, token, data, refreshToken);
         refreshUser();
     };
 

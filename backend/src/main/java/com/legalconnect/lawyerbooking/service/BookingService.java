@@ -63,36 +63,139 @@ public class BookingService {
 
         // Create appointment
         Appointment appointment = new Appointment();
-        appointment.setUserId(userId);
+        appointment.setUserId(userId); // System-provided ID for the user
         appointment.setLawyerId(request.getLawyerId());
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setDurationMinutes(request.getDurationMinutes());
-        appointment.setStatus("pending");
+        appointment.setStatus("REQUESTED");
         appointment.setMeetingType(request.getMeetingType());
-        appointment.setDescription(request.getDescription());
         appointment.setDescription(request.getDescription());
         appointment.setNotes(request.getNotes());
         appointment.setCaseId(request.getCaseId());
+        appointment.setRequestedByRole(request.getRequestedByRole() != null ? request.getRequestedByRole() : "user");
 
-        Appointment saved = appointmentRepository.save(appointment);
-
-        // Update case status if linked to a case
+        // Phase 0: Prerequisite check
         if (request.getCaseId() != null) {
             Optional<Case> caseOpt = caseRepository.findById(request.getCaseId());
             if (caseOpt.isPresent()) {
                 Case caseEntity = caseOpt.get();
-                if (CaseStatus.OPEN.equals(caseEntity.getCaseStatus())) {
-                    caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
-                    // Ensure lawyer is assigned if not already
-                    if (caseEntity.getLawyerId() == null) {
-                        caseEntity.setLawyerId(request.getLawyerId());
-                    }
-                    caseRepository.save(caseEntity);
+                // Strictly allow only IN_PROGRESS cases (Phase 0)
+                if (!CaseStatus.IN_PROGRESS.equals(caseEntity.getCaseStatus())) {
+                    throw new IllegalArgumentException("Phase 0 Exception: Appointments can only be scheduled for cases with IN_PROGRESS status. Current status: " + caseEntity.getCaseStatus());
                 }
+            } else {
+                throw new IllegalArgumentException("Case not found for ID: " + request.getCaseId());
+            }
+        } else {
+             throw new IllegalArgumentException("An active case link is mandatory for establishing an appointment.");
+        }
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        // Notify counter-party (Stub: Actual logic in notificationService)
+        // notificationService.sendAppointmentAlert(saved);
+
+        return convertToDTO(saved);
+    }
+
+    @Transactional
+    public AppointmentDTO proposeReschedule(Long appointmentId, Long userId, String role, BookingRequest request) {
+        Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
+        if (appointmentOpt.isEmpty()) {
+            throw new IllegalArgumentException("Appointment not found");
+        }
+
+        Appointment appointment = appointmentOpt.get();
+
+        // Ownership verification (Role-aware)
+        if ("lawyer".equalsIgnoreCase(role)) {
+            if (!appointment.getLawyerId().equals(userId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only reschedule your own appointments");
+            }
+        } else {
+            if (!appointment.getUserId().equals(userId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only reschedule your own appointments");
             }
         }
 
-        return convertToDTO(saved);
+        // Check availability
+        LocalDateTime startTime = request.getAppointmentDate();
+        LocalDateTime endTime = startTime.plusMinutes(request.getDurationMinutes());
+        List<Appointment> overlapping = appointmentRepository.findOverlappingAppointments(
+            appointment.getLawyerId(), startTime, endTime
+        );
+        overlapping = overlapping.stream().filter(a -> !a.getId().equals(appointmentId)).collect(Collectors.toList());
+        if (!overlapping.isEmpty()) {
+            throw new IllegalArgumentException("Slot unavailable. Please select another temporal window.");
+        }
+
+        appointment.setAppointmentDate(request.getAppointmentDate());
+        appointment.setDurationMinutes(request.getDurationMinutes());
+        appointment.setStatus("RESCHEDULED");
+        appointment.setRequestedByRole(role); // Track who proposed the new time
+        
+        Appointment updated = appointmentRepository.save(appointment);
+        
+        // Notify counter-party of reschedule
+        // notificationService.sendRescheduleAlert(updated);
+
+        return convertToDTO(updated);
+    }
+
+    @Transactional
+    public AppointmentDTO confirmAppointment(Long appointmentId, Long userId, String role) {
+        Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
+        if (appointmentOpt.isEmpty()) {
+            throw new IllegalArgumentException("Appointment not found");
+        }
+
+        Appointment appointment = appointmentOpt.get();
+        String currentStatus = appointment.getStatus();
+
+        // Phase 4/5 Logic: Who can confirm depends on current state
+        if ("REQUESTED".equals(currentStatus)) {
+            // Initial request: Lawyer confirms if user requested, User confirms if lawyer requested
+            if (role.equals("lawyer") && "user".equals(appointment.getRequestedByRole())) {
+                appointment.setStatus("CONFIRMED");
+            } else if (role.equals("user") && "lawyer".equals(appointment.getRequestedByRole())) {
+                appointment.setStatus("CONFIRMED");
+            } else {
+                throw new IllegalArgumentException("Waiting for counter-party authorization.");
+            }
+        } else if ("RESCHEDULED".equals(currentStatus)) {
+            // Reschedule: Confirm if the other party suggested it
+            if (!role.equals(appointment.getRequestedByRole())) {
+                appointment.setStatus("CONFIRMED");
+            } else {
+                throw new IllegalArgumentException("Awaiting counter-party confirmation for the new slot.");
+            }
+        } else {
+            throw new IllegalArgumentException("State collision: Cannot confirm session in status " + currentStatus);
+        }
+
+        Appointment updated = appointmentRepository.save(appointment);
+        
+        // Finalize notification
+        // notificationService.sendConfirmationAlert(updated);
+
+        return convertToDTO(updated);
+    }
+
+    @Transactional
+    public AppointmentDTO completeAppointment(Long appointmentId) {
+        Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
+        if (appointmentOpt.isEmpty()) {
+            throw new IllegalArgumentException("Appointment not found");
+        }
+
+        Appointment appointment = appointmentOpt.get();
+        if (!"CONFIRMED".equals(appointment.getStatus())) {
+            throw new IllegalArgumentException("Only confirmed sessions can be marked as COMPLETED.");
+        }
+
+        appointment.setStatus("COMPLETED");
+        Appointment updated = appointmentRepository.save(appointment);
+        return convertToDTO(updated);
     }
 
     public List<AppointmentDTO> getUserAppointments(Long userId) {
@@ -118,6 +221,14 @@ public class BookingService {
 
     public List<AppointmentDTO> getUpcomingLawyerAppointments(Long lawyerId) {
         List<Appointment> appointments = appointmentRepository.findUpcomingByLawyerId(lawyerId, LocalDateTime.now());
+        return appointments.stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+
+    // Admin: Get all appointments in the system
+    public List<AppointmentDTO> getAllAppointments() {
+        List<Appointment> appointments = appointmentRepository.findAll();
         return appointments.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
@@ -149,7 +260,15 @@ public class BookingService {
     }
 
     @Transactional
-    public AppointmentDTO cancelAppointment(Long appointmentId, Long userId) {
+    public void deleteAppointment(Long appointmentId) {
+        if (!appointmentRepository.existsById(appointmentId)) {
+            throw new IllegalArgumentException("Appointment not found");
+        }
+        appointmentRepository.deleteById(appointmentId);
+    }
+
+    @Transactional
+    public AppointmentDTO cancelAppointment(Long appointmentId, Long requesterId, String role) {
         Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
         if (appointmentOpt.isEmpty()) {
             throw new IllegalArgumentException("Appointment not found");
@@ -157,23 +276,29 @@ public class BookingService {
 
         Appointment appointment = appointmentOpt.get();
         
-        // Verify user owns the appointment
-        if (!appointment.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("You can only cancel your own appointments");
+        // Ownership verification (Role-aware)
+        if ("lawyer".equalsIgnoreCase(role)) {
+            if (!appointment.getLawyerId().equals(requesterId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only cancel your own appointments");
+            }
+        } else {
+            if (!appointment.getUserId().equals(requesterId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only cancel your own appointments");
+            }
         }
 
         // Can only cancel pending or confirmed appointments
-        if (!appointment.getStatus().equals("pending") && !appointment.getStatus().equals("confirmed")) {
+        if (!appointment.getStatus().equals("REQUESTED") && !appointment.getStatus().equals("CONFIRMED")) {
             throw new IllegalArgumentException("Cannot cancel appointment with status: " + appointment.getStatus());
         }
 
-        appointment.setStatus("cancelled");
+        appointment.setStatus("CANCELLED");
         Appointment updated = appointmentRepository.save(appointment);
         return convertToDTO(updated);
     }
 
     @Transactional
-    public AppointmentDTO updateAppointment(Long appointmentId, Long userId, BookingRequest request) {
+    public AppointmentDTO updateAppointment(Long appointmentId, Long requesterId, String role, BookingRequest request) {
         Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
         if (appointmentOpt.isEmpty()) {
             throw new IllegalArgumentException("Appointment not found");
@@ -181,13 +306,19 @@ public class BookingService {
 
         Appointment appointment = appointmentOpt.get();
 
-        // Verify user owns the appointment
-        if (!appointment.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("You can only edit your own appointments");
+        // Ownership verification (Role-aware)
+        if ("lawyer".equalsIgnoreCase(role)) {
+            if (!appointment.getLawyerId().equals(requesterId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only edit your own appointments");
+            }
+        } else {
+            if (!appointment.getUserId().equals(requesterId)) {
+                throw new IllegalArgumentException("Unauthorized: You can only edit your own appointments");
+            }
         }
 
         // Can only edit pending appointments
-        if (!appointment.getStatus().equals("pending")) {
+        if (!appointment.getStatus().equals("REQUESTED")) {
             throw new IllegalArgumentException("Cannot edit appointment with status: " + appointment.getStatus());
         }
 
@@ -223,41 +354,6 @@ public class BookingService {
         return convertToDTO(updated);
     }
 
-    @Transactional
-    public AppointmentDTO confirmAppointment(Long appointmentId, Long lawyerId) {
-        Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
-        if (appointmentOpt.isEmpty()) {
-            throw new IllegalArgumentException("Appointment not found");
-        }
-
-        Appointment appointment = appointmentOpt.get();
-        
-        // Verify lawyer owns the appointment
-        if (!appointment.getLawyerId().equals(lawyerId)) {
-            throw new IllegalArgumentException("You can only confirm your own appointments");
-        }
-
-        if (!appointment.getStatus().equals("pending")) {
-            throw new IllegalArgumentException("Can only confirm pending appointments");
-        }
-
-        appointment.setStatus("confirmed");
-        Appointment updated = appointmentRepository.save(appointment);
-
-        // Ensure case is in-progress if it was still open
-        if (updated.getCaseId() != null) {
-            Optional<Case> caseOpt = caseRepository.findById(updated.getCaseId());
-            if (caseOpt.isPresent()) {
-                Case caseEntity = caseOpt.get();
-                if (CaseStatus.OPEN.equals(caseEntity.getCaseStatus())) {
-                    caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
-                    caseRepository.save(caseEntity);
-                }
-            }
-        }
-
-        return convertToDTO(updated);
-    }
 
     private AppointmentDTO convertToDTO(Appointment appointment) {
         AppointmentDTO dto = new AppointmentDTO();
@@ -271,6 +367,7 @@ public class BookingService {
         dto.setDescription(appointment.getDescription());
         dto.setNotes(appointment.getNotes());
         dto.setCaseId(appointment.getCaseId());
+        dto.setRequestedByRole(appointment.getRequestedByRole());
         dto.setCreatedAt(appointment.getCreatedAt());
         dto.setUpdatedAt(appointment.getUpdatedAt());
 
@@ -290,10 +387,12 @@ public class BookingService {
 
     private boolean isValidStatus(String status) {
         return status != null && 
-               (status.equals("pending") || 
-                status.equals("confirmed") || 
-                status.equals("completed") || 
-                status.equals("cancelled"));
+               (status.equals("REQUESTED") || 
+                status.equals("CONFIRMED") || 
+                status.equals("COMPLETED") || 
+                status.equals("CANCELLED") ||
+                status.equals("RESCHEDULED") ||
+                status.equals("NO_SHOW"));
     }
 }
 

@@ -136,9 +136,19 @@ public class AuthorizationService {
             if (!caseEntity.getUserId().equals(senderId)) {
                 throw new UnauthorizedException("User does not have access to this case");
             }
+            // Restriction: User cannot message if case is pending approval
+            if (caseEntity.getCaseStatus() == com.legalconnect.lawyerbooking.enums.CaseStatus.PENDING_APPROVAL) {
+                logger.warn("BLOCKED: User {} attempted to message for pending case {}", senderId, caseId);
+                throw new UnauthorizedException("You must wait for the lawyer to accept the connection request before you can send messages");
+            }
         } else if (senderType.equalsIgnoreCase("lawyer")) {
             if (caseEntity.getLawyerId() == null || !caseEntity.getLawyerId().equals(senderId)) {
                 throw new UnauthorizedException("Lawyer does not have access to this case");
+            }
+            // Restriction: Lawyer cannot message if case is pending approval
+            if (caseEntity.getCaseStatus() == com.legalconnect.lawyerbooking.enums.CaseStatus.PENDING_APPROVAL) {
+                logger.warn("BLOCKED: Lawyer {} attempted to message for pending case {}", senderId, caseId);
+                throw new UnauthorizedException("You must accept the connection request before you can send messages");
             }
         } else {
             throw new UnauthorizedException("Invalid sender type");
@@ -175,7 +185,6 @@ public class AuthorizationService {
         Long userId = currentUser.getUserId();
         String userType = currentUser.getRole();
         
-        System.out.println("DEBUG: verifyCaseUpdateAccess - CaseId: " + caseId + ", Current UserId: " + userId + ", UserType: " + userType);
 
         Case caseEntity = caseRepository.findById(caseId)
             .orElseThrow(() -> new ResourceNotFoundException("Case not found"));
@@ -190,9 +199,51 @@ public class AuthorizationService {
                            userId, caseId, caseEntity.getLawyerId());
                 throw new UnauthorizedException("You can only update cases assigned to you");
             }
+            // Restriction: Lawyer cannot update solution if case is pending approval
+            if (caseEntity.getCaseStatus() == com.legalconnect.lawyerbooking.enums.CaseStatus.PENDING_APPROVAL) {
+                logger.warn("BLOCKED: Lawyer {} attempted to update solution for pending case {}", userId, caseId);
+                throw new UnauthorizedException("You must accept the connection request before you can submit a solution");
+            }
+        } else if (userType.equalsIgnoreCase("user")) {
+            if (!caseEntity.getUserId().equals(userId)) {
+                logger.warn("User {} attempted to update case {} owned by user {}", 
+                           userId, caseId, caseEntity.getUserId());
+                throw new UnauthorizedException("You can only update your own cases");
+            }
         } else {
-            logger.warn("Non-lawyer user {} with type {} attempted to update case {}", userId, userType, caseId);
-            throw new UnauthorizedException("Only assigned lawyers can update cases");
+            logger.warn("Invalid user role {} for user {} attempting to update case {}", userType, userId, caseId);
+            throw new UnauthorizedException("Insufficient permissions to update case");
+        }
+    }
+    /**
+     * Verifies that the current user/lawyer can perform an assignment action.
+     * Users can assign lawyers to their own cases.
+     * Lawyers can claim cases for themselves.
+     */
+    public void verifyCaseAssignmentAction(Long caseId, Long requestedLawyerId) {
+        com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = getCurrentUser();
+        Long userId = currentUser.getUserId();
+        String role = currentUser.getRole();
+
+        Case caseEntity = caseRepository.findById(caseId)
+            .orElseThrow(() -> new ResourceNotFoundException("Case not found with id: " + caseId));
+
+        if (role.equalsIgnoreCase("user")) {
+            // User can only assign if they own the case
+            if (!caseEntity.getUserId().equals(userId)) {
+                logger.warn("ACCESS DENIED: User {} attempted to assign lawyer to case {} owned by user {}", 
+                           userId, caseId, caseEntity.getUserId());
+                throw new UnauthorizedException("You can only assign lawyers to your own cases");
+            }
+        } else if (role.equalsIgnoreCase("lawyer")) {
+            // Lawyer can only assign to themselves (claim)
+            if (!userId.equals(requestedLawyerId)) {
+                logger.warn("ACCESS DENIED: Lawyer {} attempted to assign case {} to lawyer {}", 
+                           userId, caseId, requestedLawyerId);
+                throw new UnauthorizedException("You can only claim cases for yourself");
+            }
+        } else {
+            throw new UnauthorizedException("Insufficient permissions");
         }
     }
     /**

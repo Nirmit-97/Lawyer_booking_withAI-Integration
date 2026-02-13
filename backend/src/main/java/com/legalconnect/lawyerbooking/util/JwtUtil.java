@@ -27,8 +27,11 @@ public class JwtUtil {
     @Value("${jwt.secret:your-secret-key-should-be-at-least-256-bits-long-for-HS256-algorithm}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
+    @Value("${jwt.expiration:3600000}") // 1 hour in milliseconds
     private Long expiration;
+
+    @Value("${jwt.refreshExpiration:604800000}") // 7 days in milliseconds
+    private Long refreshExpiration;
 
     /**
      * Get signing key for JWT token
@@ -93,12 +96,16 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("role", role.name()); 
-        return createToken(claims, username);
+        return createToken(claims, username, expiration);
     }
 
-    private String createToken(Map<String, Object> claims, String subject) {
+    public String generateRefreshToken(String username) {
+        return createToken(new HashMap<>(), username, refreshExpiration);
+    }
+
+    private String createToken(Map<String, Object> claims, String subject, Long expirationTime) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
+        Date expiryDate = new Date(now.getTime() + expirationTime);
 
         return Jwts.builder()
                 .claims(claims)

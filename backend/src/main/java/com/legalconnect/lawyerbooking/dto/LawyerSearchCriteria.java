@@ -9,6 +9,7 @@ public class LawyerSearchCriteria {
     private Integer minCompletedCases;
     private String availability;
     private String name;
+    private Boolean verified;
 
     // Getters and Setters
     public CaseType getSpecialization() { return specialization; }
@@ -28,6 +29,9 @@ public class LawyerSearchCriteria {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public Boolean getVerified() { return verified; }
+    public void setVerified(Boolean verified) { this.verified = verified; }
 
     @Override
     public String toString() {

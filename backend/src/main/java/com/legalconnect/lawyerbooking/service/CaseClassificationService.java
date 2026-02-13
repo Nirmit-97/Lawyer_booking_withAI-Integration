@@ -65,6 +65,36 @@ public class CaseClassificationService {
             Case Description:
             """;
 
+    private static final String TITLE_GENERATION_PROMPT = """
+            Act as a legal secretary.
+            
+            Generate a concise, professional title (3-5 words) for the following legal case description.
+            Examples: "Property Dispute in Mumbai", "Corporate Breach of Contract", "Family Custody Battle".
+            
+            Do not use quotes in the output.
+            
+            Case Description:
+            """;
+
+    public String generateTitle(String maskedText) {
+        if (maskedText == null || maskedText.trim().isEmpty()) {
+            return "Legal Case Record";
+        }
+
+        try {
+            String title = callOpenAI(maskedText, TITLE_GENERATION_PROMPT);
+            System.out.println("DEBUG: AI Generated Title: " + title);
+            if (title != null) {
+                return title.replace("\"", "").trim();
+            }
+        } catch (Exception e) {
+            System.out.println("DEBUG: AI Title Generation error: " + e.getMessage());
+            logger.warn("AI Title Generation failed: {}", e.getMessage());
+        }
+        
+        return null;
+    }
+
     public String classifyCase(String maskedText) {
         if (maskedText == null || maskedText.trim().isEmpty()) {
             return "Civil";
@@ -114,22 +144,26 @@ public class CaseClassificationService {
     }
 
     private String callOpenAI(String text) throws Exception {
+        return callOpenAI(text, CLASSIFICATION_PROMPT);
+    }
+
+    private String callOpenAI(String text, String promptSystem) throws Exception {
         ObjectNode requestJson = mapper.createObjectNode();
-        requestJson.put("model", "gpt-4o-mini");
+        requestJson.put("model", "gpt-3.5-turbo"); // Fallback to widely available model
         
         ArrayNode messages = mapper.createArrayNode();
         ObjectNode systemMessage = mapper.createObjectNode();
         systemMessage.put("role", "system");
-        systemMessage.put("content", "Respond with only one word from the specific list provided.");
+        systemMessage.put("content", "You are a helpful legal assistant.");
         messages.add(systemMessage);
         
         ObjectNode userMessage = mapper.createObjectNode();
         userMessage.put("role", "user");
-        userMessage.put("content", CLASSIFICATION_PROMPT + text + "\n\nRespond with only one word from the list.");
+        userMessage.put("content", promptSystem + text);
         messages.add(userMessage);
         
         requestJson.set("messages", messages);
-        requestJson.put("temperature", 0.0);
+        requestJson.put("temperature", 0.3);
 
         RequestBody body = RequestBody.create(
                 mapper.writeValueAsString(requestJson),
@@ -143,9 +177,19 @@ public class CaseClassificationService {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) return null;
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "No body";
+                logger.error("OpenAI API Failed. Status: {}, Body: {}", response.code(), errorBody);
+                return null;
+            }
             JsonNode json = mapper.readTree(response.body().string());
-            return json.get("choices").get(0).get("message").get("content").asText().trim();
+            if (json.has("choices") && json.get("choices").size() > 0) {
+                return json.get("choices").get(0).get("message").get("content").asText().trim();
+            }
+            return null;
+        } catch (Exception e) {
+            logger.error("Error making OpenAI request: {}", e.getMessage(), e);
+            throw e;
         }
     }
 

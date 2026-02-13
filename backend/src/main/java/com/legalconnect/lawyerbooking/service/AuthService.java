@@ -11,7 +11,9 @@ import com.legalconnect.lawyerbooking.entity.Admin;
 import com.legalconnect.lawyerbooking.repository.UserRepository;
 import com.legalconnect.lawyerbooking.repository.LawyerRepository;
 import com.legalconnect.lawyerbooking.repository.AdminRepository;
+import com.legalconnect.lawyerbooking.repository.RefreshTokenRepository;
 import com.legalconnect.lawyerbooking.util.JwtUtil;
+import com.legalconnect.lawyerbooking.entity.RefreshToken;
 import com.legalconnect.lawyerbooking.exception.BadRequestException;
 import com.legalconnect.lawyerbooking.exception.UnauthorizedException;
 import com.legalconnect.lawyerbooking.enums.Role;
@@ -21,7 +23,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -38,11 +42,15 @@ public class AuthService {
     private AdminRepository adminRepository;
 
     @Autowired
-    private PasswordService passwordService;
-
-    @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private PasswordService passwordService;
+
+    @Transactional
     public LoginResponse loginUser(LoginRequest request) {
         validateLoginRequest(request);
 
@@ -52,6 +60,8 @@ public class AuthService {
         verifyPassword(request.getPassword(), user.getPassword(), user);
         
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), Role.USER);
+        String refreshToken = createRefreshToken(user.getId(), user.getUsername(), "user");
+        
         logger.info("User logged in successfully: {}", user.getUsername());
         
         LoginResponse response = new LoginResponse(true, "Login successful");
@@ -60,10 +70,12 @@ public class AuthService {
         response.setFullName(user.getFullName());
         response.setId(user.getId());
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
         
         return response;
     }
 
+    @Transactional
     public LoginResponse loginLawyer(LoginRequest request) {
         validateLoginRequest(request);
 
@@ -73,6 +85,8 @@ public class AuthService {
         verifyPassword(request.getPassword(), lawyer.getPassword(), lawyer);
 
         String token = jwtUtil.generateToken(lawyer.getId(), lawyer.getUsername(), Role.LAWYER);
+        String refreshToken = createRefreshToken(lawyer.getId(), lawyer.getUsername(), "lawyer");
+        
         logger.info("Lawyer logged in successfully: {}", lawyer.getUsername());
 
         LoginResponse response = new LoginResponse(true, "Login successful");
@@ -81,10 +95,12 @@ public class AuthService {
         response.setFullName(lawyer.getFullName());
         response.setId(lawyer.getId());
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
 
         return response;
     }
 
+    @Transactional
     public LoginResponse loginAdmin(LoginRequest request) {
         validateLoginRequest(request);
         
@@ -101,6 +117,8 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(admin.getId(), admin.getUsername(), Role.ADMIN);
+        String refreshToken = createRefreshToken(admin.getId(), admin.getUsername(), "admin");
+        
         logger.info("Admin logged in successfully: {}", admin.getUsername());
 
         LoginResponse response = new LoginResponse(true, "Login successful");
@@ -109,6 +127,7 @@ public class AuthService {
         response.setFullName(admin.getFullName());
         response.setId(admin.getId());
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
 
         return response;
     }
@@ -157,6 +176,9 @@ public class AuthService {
         newLawyer.setEmail(request.getEmail());
         newLawyer.setBarNumber(request.getBarNumber());
         newLawyer.setSpecializations(request.getSpecializations());
+        newLawyer.setVerified(false);
+        newLawyer.setRating(0.0);
+        newLawyer.setCompletedCasesCount(0);
 
         Lawyer savedLawyer = lawyerRepository.save(newLawyer);
         logger.info("Lawyer registered: {}", savedLawyer.getUsername());
@@ -206,5 +228,88 @@ public class AuthService {
             ((Lawyer) entity).setPassword(newHash);
             lawyerRepository.save((Lawyer) entity);
         }
+    }
+
+    public String createRefreshToken(Long userId, String username, String role) {
+        // Delete existing refresh tokens for this user and role to prevent bloat
+        refreshTokenRepository.deleteByUserIdAndUserType(userId, role);
+        
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setUserId(userId);
+        refreshToken.setUserType(role);
+        refreshToken.setToken(UUID.randomUUID().toString()); // Simple UUID for refresh token
+        refreshToken.setExpiresAt(Instant.now().plusMillis(604800000)); // 7 days
+        refreshToken.setUsed(false);
+        refreshToken.setCreatedAt(Instant.now());
+        
+        refreshTokenRepository.save(refreshToken);
+        return refreshToken.getToken();
+    }
+
+    @Transactional
+    public LoginResponse refreshToken(String requestToken) {
+        return refreshTokenRepository.findByToken(requestToken)
+                .map(this::verifyExpiration)
+                .map(refreshToken -> {
+                    String userType = refreshToken.getUserType();
+                    Long userId = refreshToken.getUserId();
+                    String username;
+                    String fullName;
+                    Role role;
+
+                    if ("lawyer".equals(userType)) {
+                        Lawyer lawyer = lawyerRepository.findById(userId)
+                                .orElseThrow(() -> new UnauthorizedException("Lawyer not found"));
+                        username = lawyer.getUsername();
+                        fullName = lawyer.getFullName();
+                        role = Role.LAWYER;
+                    } else if ("admin".equals(userType)) {
+                        Admin admin = adminRepository.findById(userId)
+                                .orElseThrow(() -> new UnauthorizedException("Admin not found"));
+                        username = admin.getUsername();
+                        fullName = admin.getFullName();
+                        role = Role.ADMIN;
+                    } else {
+                        User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new UnauthorizedException("User not found"));
+                        username = user.getUsername();
+                        fullName = user.getFullName();
+                        role = Role.USER;
+                    }
+
+                    // Security Check: Theft detection
+                    if (refreshToken.isUsed()) {
+                        logger.error("Refresh token reuse detected! Potential theft for user: {}", userId);
+                        refreshTokenRepository.deleteByUserIdAndUserType(userId, userType);
+                        throw new UnauthorizedException("Security violation. Please login again.");
+                    }
+
+                    String newToken = jwtUtil.generateToken(userId, username, role);
+                    
+                    // Mark old token as used
+                    refreshToken.setUsed(true);
+                    refreshTokenRepository.save(refreshToken);
+
+                    // Create NEW refresh token (Rotation)
+                    String newRefreshToken = createRefreshToken(userId, username, userType);
+
+                    LoginResponse response = new LoginResponse(true, "Token refreshed successfully");
+                    response.setToken(newToken);
+                    response.setRefreshToken(newRefreshToken);
+                    response.setUserType(userType);
+                    response.setUsername(username);
+                    response.setFullName(fullName);
+                    response.setId(userId);
+                    return response;
+                })
+                .orElseThrow(() -> new UnauthorizedException("Refresh token is not in database!"));
+    }
+
+    private RefreshToken verifyExpiration(RefreshToken token) {
+        if (token.getExpiresAt().isBefore(Instant.now())) {
+            refreshTokenRepository.delete(token);
+            throw new UnauthorizedException("Refresh token was expired. Please make a new signin request");
+        }
+        return token;
     }
 }

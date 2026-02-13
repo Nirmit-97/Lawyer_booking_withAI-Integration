@@ -53,6 +53,24 @@ public class Lawyer {
     @Column(name = "availability_info", length = 500)
     private String availabilityInfo;
 
+    @Column(name = "verified")
+    private Boolean verified = false;
+
+    @Column(name = "bio", columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(name = "consultation_modes", length = 255)
+    private String consultationModes;
+
+    @Column(name = "headline", length = 255)
+    private String headline;
+
+    @Column(name = "experience_timeline", columnDefinition = "TEXT")
+    private String experienceTimeline;
+
+    @Column(name = "notable_successes", columnDefinition = "TEXT")
+    private String notableSuccesses;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -114,6 +132,24 @@ public class Lawyer {
 
     public String getAvailabilityInfo() { return availabilityInfo; }
     public void setAvailabilityInfo(String availabilityInfo) { this.availabilityInfo = availabilityInfo; }
+
+    public Boolean isVerified() { return verified; }
+    public void setVerified(Boolean verified) { this.verified = verified; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+
+    public String getConsultationModes() { return consultationModes; }
+    public void setConsultationModes(String consultationModes) { this.consultationModes = consultationModes; }
+
+    public String getHeadline() { return headline; }
+    public void setHeadline(String headline) { this.headline = headline; }
+
+    public String getExperienceTimeline() { return experienceTimeline; }
+    public void setExperienceTimeline(String experienceTimeline) { this.experienceTimeline = experienceTimeline; }
+
+    public String getNotableSuccesses() { return notableSuccesses; }
+    public void setNotableSuccesses(String notableSuccesses) { this.notableSuccesses = notableSuccesses; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

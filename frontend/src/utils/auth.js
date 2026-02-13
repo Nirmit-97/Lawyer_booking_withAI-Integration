@@ -30,19 +30,40 @@ export const getToken = () => {
   return token;
 };
 
-export const login = (role, token, data) => {
+export const getRefreshToken = () => {
+  const role = getActiveRole();
+  let token = null;
+
+  if (role === 'user') token = localStorage.getItem('userRefreshToken');
+  else if (role === 'lawyer') token = localStorage.getItem('lawyerRefreshToken');
+  else if (role === 'admin') token = localStorage.getItem('refreshToken');
+
+  return token;
+};
+
+export const setAccessToken = (token) => {
+  const role = getActiveRole();
+  if (role === 'user') localStorage.setItem('userToken', token);
+  else if (role === 'lawyer') localStorage.setItem('lawyerToken', token);
+  else if (role === 'admin') localStorage.setItem('token', token);
+};
+
+export const login = (role, token, data, refreshToken) => {
   // ISOALTON: We no longer call removeToken() here.
   // This allows a User to be logged in Tab A and a Lawyer in Tab B simultaneously.
 
   setActiveRole(role);
   if (role === 'user') {
     localStorage.setItem('userToken', token);
+    if (refreshToken) localStorage.setItem('userRefreshToken', refreshToken);
     localStorage.setItem('userData', JSON.stringify(data));
   } else if (role === 'lawyer') {
     localStorage.setItem('lawyerToken', token);
+    if (refreshToken) localStorage.setItem('lawyerRefreshToken', refreshToken);
     localStorage.setItem('lawyerData', JSON.stringify(data));
   } else if (role === 'admin') {
     localStorage.setItem('token', token);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('adminData', JSON.stringify(data));
   }
 };
@@ -53,12 +74,15 @@ export const removeToken = () => {
   // Granular removal: Only remove the data for the ACTIVE role in this tab
   if (role === 'user') {
     localStorage.removeItem('userToken');
+    localStorage.removeItem('userRefreshToken');
     localStorage.removeItem('userData');
   } else if (role === 'lawyer') {
     localStorage.removeItem('lawyerToken');
+    localStorage.removeItem('lawyerRefreshToken');
     localStorage.removeItem('lawyerData');
   } else if (role === 'admin') {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('adminData');
   }
 

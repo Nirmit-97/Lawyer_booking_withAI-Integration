@@ -4,6 +4,9 @@ import com.legalconnect.lawyerbooking.enums.CaseStatus;
 import com.legalconnect.lawyerbooking.enums.CaseType;
 import java.time.LocalDateTime;
 
+/**
+ * Data Transfer Object for Case information.
+ */
 public class CaseDTO {
     private Long id;
     private Long userId;
@@ -15,13 +18,19 @@ public class CaseDTO {
     private String solution;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Additional fields for display purposes
+    private String userFullName;
+    private String userEmail;
+    private String lawyerFullName;
 
-    // Constructors
+    // Default Constructor
     public CaseDTO() {}
 
-    public CaseDTO(Long id, Long userId, Long lawyerId, String caseTitle,
-                   CaseType caseType, CaseStatus caseStatus, String description, 
-                   String solution, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    // Parameterized Constructor
+    public CaseDTO(Long id, Long userId, Long lawyerId, String caseTitle, CaseType caseType, 
+                   CaseStatus caseStatus, String description, String solution, 
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.lawyerId = lawyerId;
@@ -75,21 +84,6 @@ public class CaseDTO {
         this.caseType = caseType;
     }
 
-    // Alias for frontend compatibility (CaseList.js expects caseCategory)
-    public String getCaseCategory() {
-        return caseType != null ? caseType.name() : null;
-    }
-
-    public void setCaseCategory(String category) {
-        if (category != null) {
-            try {
-                this.caseType = CaseType.valueOf(category.trim().toUpperCase().replace(" ", "_"));
-            } catch (Exception e) {
-                this.caseType = CaseType.OTHER;
-            }
-        }
-    }
-
     public CaseStatus getCaseStatus() {
         return caseStatus;
     }
@@ -114,7 +108,6 @@ public class CaseDTO {
         this.solution = solution;
     }
 
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -130,5 +123,28 @@ public class CaseDTO {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
-}
 
+    public String getUserFullName() {
+        return userFullName;
+    }
+
+    public void setUserFullName(String userFullName) {
+        this.userFullName = userFullName;
+    }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
+
+    public String getLawyerFullName() {
+        return lawyerFullName;
+    }
+
+    public void setLawyerFullName(String lawyerFullName) {
+        this.lawyerFullName = lawyerFullName;
+    }
+}

@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/bookings/lawyers").permitAll()
                 .requestMatchers("/api/lawyers/*/profile").permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/api/payments/webhook").permitAll() // Razorpay webhook
                 .requestMatchers("/error").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 

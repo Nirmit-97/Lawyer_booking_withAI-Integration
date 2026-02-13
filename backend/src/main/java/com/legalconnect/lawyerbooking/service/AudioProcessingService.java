@@ -82,8 +82,8 @@ public class AudioProcessingService {
                 .collect(Collectors.toList());
     }
 
-    private ClientAudioDTO convertToDTO(ClientAudio ca) {
-        return new ClientAudioDTO(
+    public ClientAudioDTO convertToDTO(ClientAudio ca) {
+        ClientAudioDTO dto = new ClientAudioDTO(
             ca.getId(),
             ca.getLanguage(),
             ca.getOriginalEnglishText(),
@@ -95,6 +95,20 @@ public class AudioProcessingService {
             ca.getCaseId(),
             ca.getLawyerId()
         );
+
+        if (ca.getCaseId() != null) {
+            try {
+                // Fetch case title to replace log identification with something descriptive
+                CaseDTO caseDTO = caseService.getCaseById(ca.getCaseId());
+                if (caseDTO != null) {
+                    dto.setCaseTitle(caseDTO.getCaseTitle());
+                }
+            } catch (Exception e) {
+                logger.warn("Could not fetch case title for audio record {}: {}", ca.getId(), e.getMessage());
+            }
+        }
+        
+        return dto;
     }
 
     /**
@@ -105,13 +119,13 @@ public class AudioProcessingService {
      * @return The processed and saved ClientAudio entity
      */
     @Transactional
-    public ClientAudio processAndCreateCase(MultipartFile audio, Long userId, String caseTitle) {
+    public ClientAudio processAndCreateCase(MultipartFile audio, Long userId, String caseTitle, Long lawyerId) {
         // Core Processing Phase
         ClientAudio clientAudio = processAudioPipeline(audio, userId);
 
         // Case Creation Phase
         if (userId != null) {
-            linkToCase(clientAudio, userId, caseTitle, audio.getOriginalFilename());
+            linkToCase(clientAudio, userId, caseTitle, audio.getOriginalFilename(), lawyerId);
         } else {
             logger.warn("UserId is null, skipping case creation for audio ID: {}", clientAudio.getId());
         }
@@ -121,11 +135,11 @@ public class AudioProcessingService {
     
     // Legacy method support if needed, or redirect to main flow
     public ClientAudio process(MultipartFile audio) {
-        return processAndCreateCase(audio, null, null);
+        return processAndCreateCase(audio, null, null, null);
     }
     
     public ClientAudio process(MultipartFile audio, Long userId) {
-        return processAndCreateCase(audio, userId, null);
+        return processAndCreateCase(audio, userId, null, null);
     }
 
     private ClientAudio processAudioPipeline(MultipartFile audio, Long userId) {
@@ -245,15 +259,23 @@ public class AudioProcessingService {
         return repository.save(ca);
     }
 
-    private void linkToCase(ClientAudio clientAudio, Long userId, String caseTitle, String fileName) {
+    private void linkToCase(ClientAudio clientAudio, Long userId, String caseTitle, String fileName, Long lawyerId) {
         try {
-            String title = (caseTitle != null && !caseTitle.trim().isEmpty()) 
-                ? caseTitle 
-                : "Case from Audio - " + (fileName != null ? fileName : "recording");
+            String title = caseTitle;
+            
+            if (title == null || title.trim().isEmpty()) {
+                logger.debug("Step 5.5: Generating AI Title...");
+                title = classificationService.generateTitle(clientAudio.getMaskedEnglishText());
+                
+                if (title == null) {
+                    title = "Case from Audio - " + (fileName != null ? fileName : "recording");
+                }
+            }
 
             CaseRequest caseRequest = new CaseRequest();
             caseRequest.setUserId(userId);
             caseRequest.setCaseTitle(title);
+            caseRequest.setLawyerId(lawyerId);
             
             // 6. Classification
             logger.debug("Step 6: Classifying case category...");

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import './Login.css';
+
 
 const API_BASE_URL = 'http://localhost:8080/api/auth';
 
@@ -48,8 +48,19 @@ function UserRegistration() {
     // Password validation
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+    } else {
+      const password = formData.password;
+      if (password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters long';
+      } else if (!/[A-Z]/.test(password)) {
+        newErrors.password = 'Include at least one uppercase letter';
+      } else if (!/[a-z]/.test(password)) {
+        newErrors.password = 'Include at least one lowercase letter';
+      } else if (!/[0-9]/.test(password)) {
+        newErrors.password = 'Include at least one digit';
+      } else if (!/[^A-Za-z0-9]/.test(password)) {
+        newErrors.password = 'Include at least one special character';
+      }
     }
 
     // Confirm password validation
@@ -81,7 +92,7 @@ function UserRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!validateForm()) {
       return;
     }
@@ -130,91 +141,120 @@ function UserRegistration() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1 className="login-title">User Registration</h1>
-        <p style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>
-          Create your account to get started
-        </p>
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="username">Username *</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="Choose a username (min 3 characters)"
-              className={errors.username ? 'input-error' : ''}
-            />
-            {errors.username && <span className="field-error">{errors.username}</span>}
+    <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center p-6 geo-pattern hero-gradient">
+      <div className="glass-card w-full max-w-lg rounded-[2.5rem] p-10 border border-white/50 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-electric-blue/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+
+        <div className="flex flex-col items-center mb-8 text-center">
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-primary/20">
+            <span className="material-symbols-outlined text-3xl">app_registration</span>
+          </div>
+          <h1 className="text-3xl font-black text-primary dark:text-white tracking-tight uppercase">Register</h1>
+          <p className="text-sm text-gray-500 font-bold mt-1 uppercase tracking-widest leading-relaxed">Create Your Secure Identity</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Identifier *</label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Username"
+                className={`w-full px-6 py-4 bg-white/50 border-2 rounded-2xl focus:bg-white transition-all outline-none font-bold text-primary ${errors.username ? 'border-red-500/50' : 'border-transparent focus:border-electric-blue'}`}
+              />
+              {errors.username && <p className="text-[10px] text-red-500 font-black uppercase px-4">{errors.username}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Full Identity *</label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Full Name"
+                className={`w-full px-6 py-4 bg-white/50 border-2 rounded-2xl focus:bg-white transition-all outline-none font-bold text-primary ${errors.fullName ? 'border-red-500/50' : 'border-transparent focus:border-electric-blue'}`}
+              />
+              {errors.fullName && <p className="text-[10px] text-red-500 font-black uppercase px-4">{errors.fullName}</p>}
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="fullName">Full Name *</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-              className={errors.fullName ? 'input-error' : ''}
-            />
-            {errors.fullName && <span className="field-error">{errors.fullName}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Digital Link (Optional)</label>
             <input
               type="email"
-              id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email (optional)"
-              className={errors.email ? 'input-error' : ''}
+              placeholder="Email Address"
+              className={`w-full px-6 py-4 bg-white/50 border-2 rounded-2xl focus:bg-white transition-all outline-none font-bold text-primary ${errors.email ? 'border-red-500/50' : 'border-transparent focus:border-electric-blue'}`}
             />
-            {errors.email && <span className="field-error">{errors.email}</span>}
+            {errors.email && <p className="text-[10px] text-red-500 font-black uppercase px-4">{errors.email}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password *</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter password (min 6 characters)"
-              className={errors.password ? 'input-error' : ''}
-            />
-            {errors.password && <span className="field-error">{errors.password}</span>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Secret *</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password"
+                className={`w-full px-6 py-4 bg-white/50 border-2 rounded-2xl focus:bg-white transition-all outline-none font-bold text-primary ${errors.password ? 'border-red-500/50' : 'border-transparent focus:border-electric-blue'}`}
+              />
+              <div className="px-4 pt-1 space-y-1">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                  Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special
+                </p>
+                {errors.password && <p className="text-[10px] text-red-500 font-black uppercase">{errors.password}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Confirm *</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm"
+                className={`w-full px-6 py-4 bg-white/50 border-2 rounded-2xl focus:bg-white transition-all outline-none font-bold text-primary ${errors.confirmPassword ? 'border-red-500/50' : 'border-transparent focus:border-electric-blue'}`}
+              />
+              {errors.confirmPassword && <p className="text-[10px] text-red-500 font-black uppercase px-4">{errors.confirmPassword}</p>}
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password *</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm your password"
-              className={errors.confirmPassword ? 'input-error' : ''}
-            />
-            {errors.confirmPassword && <span className="field-error">{errors.confirmPassword}</span>}
-          </div>
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold p-4 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">report_problem</span>
+              {error}
+            </div>
+          )}
 
-          {error && <div className="error-message">{error}</div>}
-          
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Registering...' : 'Register'}
+          <button
+            type="submit"
+            className="w-full h-16 bg-electric-blue text-white rounded-2xl font-black text-lg shadow-xl shadow-electric-blue/30 hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="animate-spin material-symbols-outlined">refresh</span>
+            ) : (
+              <>
+                Create Account
+                <span className="material-symbols-outlined">person_add</span>
+              </>
+            )}
           </button>
         </form>
-        <div className="login-footer">
-          <p>Already have an account? <Link to="/user-login">Login here</Link></p>
+
+        <div className="mt-8 pt-8 border-t border-gray-100 text-center">
+          <p className="text-sm font-bold text-gray-500">
+            Already have an active identity? <Link to="/user-login" className="text-electric-blue hover:underline">Sign In Here</Link>
+          </p>
         </div>
       </div>
     </div>

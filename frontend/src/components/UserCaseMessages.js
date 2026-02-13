@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-
 import { messagesApi } from '../utils/api';
 
-function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, onCaseUpdate }) {
+function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, caseStatus, onCaseUpdate }) {
+  const isPending = caseStatus?.toUpperCase() === 'PENDING_APPROVAL';
+  const isClosed = caseStatus?.toUpperCase() === 'CLOSED';
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [connected, setConnected] = useState(false);
@@ -17,259 +18,101 @@ function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, on
     try {
       const response = await messagesApi.getByCase(caseId);
       setMessages(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      console.error('Error fetching messages:', err);
-    }
+    } catch (err) { console.error('Error fetching messages:', err); }
   }, [caseId]);
 
   const connectWebSocket = useCallback(() => {
-    // Determine base URL for WebSocket dynamically
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    const host = window.location.hostname;
-    const port = '8080'; // Backend port
-    const socketUrl = `${protocol}//${host}:${port}/ws`;
-
-    console.log('Attempting WebSocket connection to:', socketUrl);
-
+    const socketUrl = `${protocol}//${window.location.hostname}:8080/ws`;
     const socket = new SockJS(socketUrl);
     const client = new Client({
       webSocketFactory: () => socket,
-      connectionTimeout: 10000,
-      connectHeaders: {
-        // Authorization header removed as per requirement to decouple WS from JWT
-      },
-      debug: (str) => {
-        if (str.includes('ERROR')) console.error('STOMP: ' + str);
-        else console.log('STOMP: ' + str);
-      },
       reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
-
-    client.onConnect = (frame) => {
-      console.log('Connected to WebSocket: ' + frame);
-      setConnected(true);
-      client.subscribe(`/topic/case/${caseId}`, (message) => {
-        try {
+      onConnect: () => {
+        setConnected(true);
+        client.subscribe(`/topic/case/${caseId}`, (message) => {
           const receivedData = JSON.parse(message.body);
-
-          // Check if it's a chat message (has messageText) or a case update (has caseTitle or solution)
           if (receivedData.messageText) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === receivedData.id)) return prev;
-              return [...prev, receivedData];
-            });
-          } else if (receivedData.caseTitle !== undefined || receivedData.solution !== undefined) {
-            console.log('Received real-time case update:', receivedData);
-            if (onCaseUpdate) {
-              onCaseUpdate(receivedData);
-            }
-          }
-        } catch (e) {
-          console.error('Error parsing broadcast message:', e);
-        }
-      });
-    };
-
-    client.onStompError = (frame) => {
-      console.error('STOMP protocol error:', frame.headers['message']);
-      setConnected(false);
-    };
-
-    client.onWebSocketClose = () => {
-      console.warn('WebSocket connection closed');
-      setConnected(false);
-    };
-
-    try {
-      client.activate();
-      stompClientRef.current = client;
-    } catch (err) {
-      console.error('Failed to activate STOMP client:', err);
-    }
-  }, [caseId]);
+            setMessages((prev) => prev.some(m => m.id === receivedData.id) ? prev : [...prev, receivedData]);
+          } else if (onCaseUpdate) onCaseUpdate(receivedData);
+        });
+      },
+      onStompError: () => setConnected(false),
+      onWebSocketClose: () => setConnected(false),
+    });
+    client.activate();
+    stompClientRef.current = client;
+  }, [caseId, onCaseUpdate]);
 
   useEffect(() => {
-    if (caseId) {
-      fetchMessages();
-      connectWebSocket();
-    }
-    return () => disconnectWebSocket();
+    if (caseId) { fetchMessages(); connectWebSocket(); }
+    return () => stompClientRef.current?.deactivate();
   }, [caseId, fetchMessages, connectWebSocket]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-
-
-  const disconnectWebSocket = () => {
-    if (stompClientRef.current) {
-      stompClientRef.current.deactivate();
-    }
-  };
-
-
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !caseId || !userId || !userType) {
-      toast.warning('Please enter a message');
-      return;
-    }
-
-    // Determine receiver based on current user type
+    if (!newMessage.trim() || isPending) return;
     const isLawyer = userType === 'lawyer';
     const receiverId = isLawyer ? clientUserId : lawyerId;
-    const receiverType = isLawyer ? 'user' : 'lawyer';
-
-    if (!receiverId) {
-      toast.error('Waiting for other party to join...');
-      return;
-    }
+    if (!receiverId) return toast.error('Waiting for other party...');
 
     const messageData = {
-      caseId: caseId,
-      senderId: userId,
-      senderType: userType,
-      receiverId: receiverId,
-      receiverType: receiverType,
+      caseId, senderId: userId, senderType: userType,
+      receiverId, receiverType: isLawyer ? 'user' : 'lawyer',
       messageText: newMessage.trim()
     };
 
     if (stompClientRef.current && connected) {
-      stompClientRef.current.publish({
-        destination: '/app/chat.send',
-        body: JSON.stringify(messageData),
-      });
+      stompClientRef.current.publish({ destination: '/app/chat.send', body: JSON.stringify(messageData) });
       setNewMessage('');
     } else {
-      // Fallback to REST if WS is down
-      try {
-        await messagesApi.send(messageData);
-        setNewMessage('');
-      } catch (err) {
-        toast.error('Failed to send message');
-      }
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+      try { await messagesApi.send(messageData); setNewMessage(''); }
+      catch (err) { toast.error('Failed to send'); }
     }
   };
 
   return (
-    <div style={{
-      border: '1px solid #ddd',
-      borderRadius: '12px',
-      padding: '24px',
-      backgroundColor: '#fcfcfc',
-      maxHeight: '600px',
-      display: 'flex',
-      flexDirection: 'column',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#333' }}>Case Discussion</h3>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: '600',
-          color: connected ? '#2ecc71' : '#e74c3c',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 10px',
-          borderRadius: '20px',
-          backgroundColor: connected ? '#eafaf1' : '#fdedec'
-        }}>
-          <span style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: connected ? '#2ecc71' : '#e74c3c'
-          }} />
-          {connected ? 'Realtime Connected' : 'Disconnected'}
-        </span>
+    <div className="flex flex-col h-[600px] bg-white dark:bg-background-dark/30 rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
+      {/* Chat Header */}
+      <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-electric-blue/10 rounded-lg flex items-center justify-center">
+            <span className="material-symbols-outlined text-electric-blue !text-lg">forum</span>
+          </div>
+          <h3 className="text-sm font-black uppercase tracking-widest text-primary dark:text-white">Secure Link</h3>
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${connected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
+          <span className="text-[10px] font-black uppercase tracking-tighter">{connected ? 'Live' : 'Offline'}</span>
+        </div>
       </div>
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        marginBottom: '20px',
-        padding: '15px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        minHeight: '300px',
-        maxHeight: '400px',
-        border: '1px solid #f0f0f0'
-      }}>
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
         {messages.length === 0 ? (
-          <div style={{ color: '#888', textAlign: 'center', padding: '40px 20px' }}>
-            <p style={{ margin: 0 }}>No messages in this case yet.</p>
-            <p style={{ fontSize: '0.9rem', marginTop: '5px' }}>Start the conversation by sending a message below.</p>
+          <div className="h-full flex flex-col items-center justify-center text-center opacity-40 grayscale">
+            <span className="material-symbols-outlined text-4xl mb-2">mark_chat_unread</span>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em]">Establish communication below</p>
           </div>
         ) : (
           messages.map((msg) => {
-            // Logic to determine if I am the sender
             const isMe = String(msg.senderId) === String(userId) && msg.senderType === userType;
-
-            // Determine label for the other party
-            let otherPartyLabel = 'Other';
-            if (msg.senderType === 'user') otherPartyLabel = 'Client';
-            if (msg.senderType === 'lawyer') otherPartyLabel = 'Lawyer';
-
             return (
-              <div
-                key={msg.id || Math.random()}
-                style={{
-                  marginBottom: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: isMe ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  maxWidth: '85%',
-                }}>
-                  <div style={{
-                    fontWeight: '600',
-                    fontSize: '12px',
-                    marginBottom: '4px',
-                    color: isMe ? '#2980b9' : '#7f8c8d',
-                    textAlign: isMe ? 'right' : 'left'
-                  }}>
-                    {isMe ? 'You' : otherPartyLabel}
-                  </div>
-                  <div style={{
-                    padding: '12px 16px',
-                    backgroundColor: isMe ? '#e3f2fd' : '#f5f5f5',
-                    color: '#333',
-                    borderRadius: '16px',
-                    borderTopRightRadius: isMe ? '4px' : '16px',
-                    borderTopLeftRadius: isMe ? '16px' : '4px',
-                    boxShadow: '0 1px 1px rgba(0,0,0,0.05)',
-                    lineHeight: '1.5',
-                    fontSize: '0.95rem'
-                  }}>
+              <div key={msg.id || Math.random()} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
+                <div className={`max-w-[80%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
+                    {isMe ? 'Internal' : msg.senderType === 'lawyer' ? 'Counsel' : 'Client'}
+                  </span>
+                  <div className={`p-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm border ${isMe
+                    ? 'bg-primary text-white border-primary-dark rounded-tr-none'
+                    : 'bg-white dark:bg-gray-800 text-primary dark:text-gray-200 border-gray-100 dark:border-gray-700 rounded-tl-none'
+                    }`}>
                     {msg.messageText}
                   </div>
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#bdc3c7',
-                    marginTop: '4px',
-                    textAlign: isMe ? 'right' : 'left'
-                  }}>
-                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
-                  </div>
+                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
+                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Transmitting...'}
+                  </span>
                 </div>
               </div>
             );
@@ -278,55 +121,40 @@ function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, on
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyPress}
-          placeholder="Write your message..."
-          disabled={!lawyerId && userType === 'user'}
-          style={{
-            flex: 1,
-            padding: '14px 20px',
-            borderRadius: '28px',
-            border: '1px solid #e0e0e0',
-            fontSize: '15px',
-            outline: 'none',
-            backgroundColor: '#fff',
-            transition: 'border-color 0.2s',
-          }}
-          onFocus={(e) => e.target.style.borderColor = '#3498db'}
-          onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={!newMessage.trim() || (!lawyerId && userType === 'user')}
-          style={{
-            width: '50px',
-            height: '50px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: !newMessage.trim() ? '#f0f0f0' : '#3498db',
-            color: 'white',
-            border: 'none',
-            borderRadius: '50%',
-            cursor: !newMessage.trim() ? 'default' : 'pointer',
-            fontSize: '20px',
-            transition: 'all 0.2s',
-            boxShadow: !newMessage.trim() ? 'none' : '0 4px 8px rgba(52, 152, 219, 0.3)'
-          }}
-        >
-          <span style={{ transform: 'rotate(-45deg)', marginLeft: '4px' }}>➤</span>
-        </button>
+      {/* Input Area */}
+      <div className="p-4 bg-gray-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-gray-800">
+        <div className="relative group">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder={isClosed ? "Case Archived: Locked" : isPending ? "Authorization Required..." : "Inject transmission..."}
+            disabled={isPending || isClosed || (!lawyerId && userType === 'user')}
+            className="w-full pl-6 pr-14 py-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm focus:ring-2 focus:ring-primary outline-none transition-all disabled:opacity-50"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={isPending || isClosed || !newMessage.trim()}
+            className="absolute right-2 top-2 w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:grayscale shadow-lg shadow-primary/20"
+          >
+            <span className="material-symbols-outlined !text-lg">send</span>
+          </button>
+        </div>
+        {!lawyerId && userType === 'user' && !isClosed && (
+          <div className="mt-3 text-center">
+            <span className="text-[9px] font-black uppercase text-amber-500 tracking-widest animate-pulse">Awaiting Expert Assignment</span>
+          </div>
+        )}
+        {isClosed && (
+          <div className="mt-3 text-center">
+            <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined !text-xs">lock</span>
+              Professional record finalized. Communication locked.
+            </span>
+          </div>
+        )}
       </div>
-
-      {!lawyerId && userType === 'user' && (
-        <p style={{ color: '#e74c3c', fontSize: '13px', marginTop: '15px', textAlign: 'center', backgroundColor: '#fdedec', padding: '8px', borderRadius: '4px' }}>
-          <strong>Waiting for a lawyer:</strong> You can start chatting once a lawyer accepts your case.
-        </p>
-      )}
     </div>
   );
 }

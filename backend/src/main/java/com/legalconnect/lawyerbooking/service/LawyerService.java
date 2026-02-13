@@ -54,6 +54,10 @@ public class LawyerService {
                 predicates.add(cb.like(cb.lower(root.get("availabilityInfo")), "%" + criteria.getAvailability().toLowerCase() + "%"));
             }
 
+            if (criteria.getVerified() != null) {
+                predicates.add(cb.equal(root.get("verified"), criteria.getVerified()));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable);
         
@@ -101,6 +105,15 @@ public class LawyerService {
         if (updateData.getProfilePhotoUrl() != null) {
             lawyer.setProfilePhotoUrl(updateData.getProfilePhotoUrl());
         }
+        if (updateData.getBio() != null) {
+            lawyer.setBio(updateData.getBio());
+        }
+        if (updateData.getConsultationModes() != null) {
+            lawyer.setConsultationModes(updateData.getConsultationModes());
+        }
+        if (updateData.getNotableSuccesses() != null) {
+            lawyer.setNotableSuccesses(updateData.getNotableSuccesses());
+        }
         
         Lawyer savedLawyer = lawyerRepository.save(lawyer);
         return convertToDTO(savedLawyer);
@@ -127,6 +140,10 @@ public class LawyerService {
         dto.setBarNumber(lawyer.getBarNumber());
         dto.setLanguagesKnown(lawyer.getLanguagesKnown());
         dto.setProfilePhotoUrl(lawyer.getProfilePhotoUrl());
+        dto.setVerified(lawyer.isVerified());
+        dto.setBio(lawyer.getBio());
+        dto.setConsultationModes(lawyer.getConsultationModes());
+        dto.setNotableSuccesses(lawyer.getNotableSuccesses());
         return dto;
     }
 }

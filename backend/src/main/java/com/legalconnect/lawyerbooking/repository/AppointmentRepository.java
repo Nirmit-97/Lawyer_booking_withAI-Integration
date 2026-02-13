@@ -45,7 +45,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     @Query("SELECT a FROM Appointment a WHERE a.userId = :userId " +
            "AND a.appointmentDate >= :now " +
-           "AND a.status != 'cancelled' " +
+           "AND a.status != 'CANCELLED' " +
            "ORDER BY a.appointmentDate ASC")
     Page<Appointment> findUpcomingByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now, Pageable pageable);
     
@@ -54,7 +54,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     @Query("SELECT a FROM Appointment a WHERE a.lawyerId = :lawyerId " +
            "AND a.appointmentDate >= :now " +
-           "AND a.status != 'cancelled' " +
+           "AND a.status != 'CANCELLED' " +
            "ORDER BY a.appointmentDate ASC")
     Page<Appointment> findUpcomingByLawyerId(@Param("lawyerId") Long lawyerId, @Param("now") LocalDateTime now, Pageable pageable);
     
@@ -78,14 +78,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Deprecated
     @Query("SELECT a FROM Appointment a WHERE a.userId = :userId " +
            "AND a.appointmentDate >= :now " +
-           "AND a.status != 'cancelled' " +
+           "AND a.status != 'CANCELLED' " +
            "ORDER BY a.appointmentDate ASC")
     List<Appointment> findUpcomingByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now);
     
     @Deprecated
     @Query("SELECT a FROM Appointment a WHERE a.lawyerId = :lawyerId " +
            "AND a.appointmentDate >= :now " +
-           "AND a.status != 'cancelled' " +
+           "AND a.status != 'CANCELLED' " +
            "ORDER BY a.appointmentDate ASC")
     List<Appointment> findUpcomingByLawyerId(@Param("lawyerId") Long lawyerId, @Param("now") LocalDateTime now);
     
@@ -98,7 +98,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      * INDEX: Uses idx_appointment_lawyer_schedule
      */
     @Query(value = "SELECT * FROM appointments WHERE lawyer_id = :lawyerId " +
-           "AND status != 'cancelled' " +
+           "AND status != 'CANCELLED' " +
            "AND appointment_date < :endTime " +
            "AND DATE_ADD(appointment_date, INTERVAL duration_minutes MINUTE) > :startTime", 
            nativeQuery = true)
@@ -115,8 +115,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     @Query(value = "SELECT " +
            "COUNT(*) as total, " +
-           "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, " +
-           "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled " +
+           "SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed, " +
+           "SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled " +
            "FROM appointments WHERE lawyer_id = :lawyerId", 
            nativeQuery = true)
     Object[] getLawyerAppointmentStats(@Param("lawyerId") Long lawyerId);
@@ -128,8 +128,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     @Query(value = "SELECT " +
            "COUNT(*) as total, " +
-           "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, " +
-           "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled " +
+           "SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed, " +
+           "SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled " +
            "FROM appointments WHERE user_id = :userId", 
            nativeQuery = true)
     Object[] getUserAppointmentStats(@Param("userId") Long userId);
@@ -142,7 +142,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     @Query("SELECT a FROM Appointment a WHERE a.lawyerId = :lawyerId " +
            "AND a.appointmentDate BETWEEN :startDate AND :endDate " +
-           "AND a.status != 'cancelled' " +
+           "AND a.status != 'CANCELLED' " +
            "ORDER BY a.appointmentDate ASC")
     List<Appointment> findLawyerAppointmentsInDateRange(
         @Param("lawyerId") Long lawyerId,

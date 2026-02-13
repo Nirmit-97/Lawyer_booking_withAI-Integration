@@ -35,4 +35,12 @@ public interface CaseRepository extends JpaRepository<Case, Long> {
     List<Case> findAllByDeletedFalse();
 
     long countByDeletedFalse();
+    
+    long countByCaseStatus(CaseStatus caseStatus);
+    
+    long countByCaseType(CaseType caseType);
+
+    long countByCaseTypeAndDeletedFalse(CaseType caseType);
+    
+    long countByCaseStatusAndDeletedFalse(CaseStatus caseStatus);
 }

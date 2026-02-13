@@ -16,6 +16,7 @@ public class AppointmentDTO {
     private String description;
     private String notes;
     private Long caseId;
+    private String requestedByRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -145,6 +146,14 @@ public class AppointmentDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getRequestedByRole() {
+        return requestedByRole;
+    }
+
+    public void setRequestedByRole(String requestedByRole) {
+        this.requestedByRole = requestedByRole;
     }
 }
 
