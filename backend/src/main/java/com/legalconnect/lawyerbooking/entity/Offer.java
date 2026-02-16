@@ -42,7 +42,7 @@ public class Offer {
     private OfferStatus status = OfferStatus.SUBMITTED;
 
     @Column(name = "viewed_by_user", nullable = false)
-    private boolean viewedByUser = false;
+    private Boolean viewedByUser = false;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -64,6 +64,9 @@ public class Offer {
         }
         if (status == null) {
             status = OfferStatus.SUBMITTED;
+        }
+        if (viewedByUser == null) {
+            viewedByUser = false;
         }
     }
 
@@ -140,11 +143,11 @@ public class Offer {
         this.status = status;
     }
 
-    public boolean isViewedByUser() {
+    public Boolean getViewedByUser() {
         return viewedByUser;
     }
 
-    public void setViewedByUser(boolean viewedByUser) {
+    public void setViewedByUser(Boolean viewedByUser) {
         this.viewedByUser = viewedByUser;
     }
 

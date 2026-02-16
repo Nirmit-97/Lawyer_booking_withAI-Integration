@@ -21,7 +21,7 @@ public class CaseTimelineController {
     private AuthorizationService authorizationService;
 
     @GetMapping("/{caseId}/timeline")
-    public ResponseEntity<List<CaseAuditLogDTO>> getCaseTimeline(@PathVariable Long caseId) {
+    public ResponseEntity<List<CaseAuditLogDTO>> getCaseTimeline(@PathVariable("caseId") Long caseId) {
         // Verify same access rules as case access
         authorizationService.verifyCaseAccess(caseId);
 

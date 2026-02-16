@@ -53,7 +53,7 @@ public class BookingController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<AppointmentDTO>> getUserAppointments(@PathVariable Long userId) {
+    public ResponseEntity<List<AppointmentDTO>> getUserAppointments(@PathVariable("userId") Long userId) {
         try {
             List<AppointmentDTO> appointments = bookingService.getUserAppointments(userId);
             return ResponseEntity.ok(appointments);
@@ -65,7 +65,7 @@ public class BookingController {
     }
 
     @GetMapping("/lawyer/{lawyerId}")
-    public ResponseEntity<List<AppointmentDTO>> getLawyerAppointments(@PathVariable Long lawyerId) {
+    public ResponseEntity<List<AppointmentDTO>> getLawyerAppointments(@PathVariable("lawyerId") Long lawyerId) {
         try {
             List<AppointmentDTO> appointments = bookingService.getLawyerAppointments(lawyerId);
             return ResponseEntity.ok(appointments);
@@ -77,7 +77,7 @@ public class BookingController {
     }
 
     @GetMapping("/user/{userId}/upcoming")
-    public ResponseEntity<List<AppointmentDTO>> getUpcomingUserAppointments(@PathVariable Long userId) {
+    public ResponseEntity<List<AppointmentDTO>> getUpcomingUserAppointments(@PathVariable("userId") Long userId) {
         try {
             List<AppointmentDTO> appointments = bookingService.getUpcomingUserAppointments(userId);
             return ResponseEntity.ok(appointments);
@@ -89,7 +89,7 @@ public class BookingController {
     }
 
     @GetMapping("/lawyer/{lawyerId}/upcoming")
-    public ResponseEntity<List<AppointmentDTO>> getUpcomingLawyerAppointments(@PathVariable Long lawyerId) {
+    public ResponseEntity<List<AppointmentDTO>> getUpcomingLawyerAppointments(@PathVariable("lawyerId") Long lawyerId) {
         try {
             List<AppointmentDTO> appointments = bookingService.getUpcomingLawyerAppointments(lawyerId);
             return ResponseEntity.ok(appointments);
@@ -123,7 +123,7 @@ public class BookingController {
     // Admin: Delete appointment
     @DeleteMapping("/admin/{appointmentId}")
     public ResponseEntity<?> deleteAppointment(
-            @PathVariable Long appointmentId,
+            @PathVariable("appointmentId") Long appointmentId,
             @RequestHeader(value = "X-Admin-Id", required = false) Long adminId) {
         try {
             if (adminId == null) {
@@ -145,7 +145,7 @@ public class BookingController {
     }
 
     @GetMapping("/{appointmentId}")
-    public ResponseEntity<AppointmentDTO> getAppointment(@PathVariable Long appointmentId) {
+    public ResponseEntity<AppointmentDTO> getAppointment(@PathVariable("appointmentId") Long appointmentId) {
         try {
             AppointmentDTO appointment = bookingService.getAppointmentById(appointmentId);
             return ResponseEntity.ok(appointment);
@@ -205,7 +205,7 @@ public class BookingController {
 
     @PutMapping("/{appointmentId}")
     public ResponseEntity<BookingResponse> updateAppointment(
-            @PathVariable Long appointmentId,
+            @PathVariable("appointmentId") Long appointmentId,
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Lawyer-Id", required = false) Long lawyerId,
             @Valid @RequestBody BookingRequest request) {

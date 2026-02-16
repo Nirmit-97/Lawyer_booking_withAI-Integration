@@ -53,7 +53,7 @@ public class DocumentController {
     }
 
     @GetMapping("/case/{caseId}")
-    public ResponseEntity<List<CaseDocumentDTO>> getDocumentsByCase(@PathVariable Long caseId) {
+    public ResponseEntity<List<CaseDocumentDTO>> getDocumentsByCase(@PathVariable("caseId") Long caseId) {
         // 1. Verify access
         authorizationService.verifyCaseAccess(caseId);
 
@@ -63,7 +63,7 @@ public class DocumentController {
     }
 
     @GetMapping("/{documentId}/download")
-    public ResponseEntity<Resource> downloadDocument(@PathVariable Long documentId) {
+    public ResponseEntity<Resource> downloadDocument(@PathVariable("documentId") Long documentId) {
         // 1. Get document metadata
         CaseDocument document = documentService.getDocumentById(documentId);
 

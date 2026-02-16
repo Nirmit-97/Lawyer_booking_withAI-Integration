@@ -154,7 +154,7 @@ public class AdminController {
 
     // Get User by ID
     @GetMapping("/users/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<User> getUserById(@PathVariable("id") Long id) {
         try {
             Optional<User> user = userRepository.findById(id);
             return user.map(ResponseEntity::ok)
@@ -166,7 +166,7 @@ public class AdminController {
 
     // Update User
     @PutMapping("/users/{id}")
-    public ResponseEntity<User> updateUser(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id, @RequestBody User userUpdate) {
+    public ResponseEntity<User> updateUser(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id, @RequestBody User userUpdate) {
         try {
             Optional<User> userOpt = userRepository.findById(id);
             if (userOpt.isEmpty()) {
@@ -188,7 +188,7 @@ public class AdminController {
 
     // Delete User
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<Map<String, String>> deleteUser(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteUser(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id) {
         try {
             if (!userRepository.existsById(id)) {
                 return ResponseEntity.notFound().build();
@@ -221,7 +221,7 @@ public class AdminController {
 
     // Get Lawyer by ID
     @GetMapping("/lawyers/{id}")
-    public ResponseEntity<Lawyer> getLawyerById(@PathVariable Long id) {
+    public ResponseEntity<Lawyer> getLawyerById(@PathVariable("id") Long id) {
         try {
             Optional<Lawyer> lawyer = lawyerRepository.findById(id);
             return lawyer.map(ResponseEntity::ok)
@@ -233,7 +233,7 @@ public class AdminController {
 
     // Update Lawyer
     @PutMapping("/lawyers/{id}")
-    public ResponseEntity<Lawyer> updateLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id, @RequestBody Lawyer lawyerUpdate) {
+    public ResponseEntity<Lawyer> updateLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id, @RequestBody Lawyer lawyerUpdate) {
         try {
             Optional<Lawyer> lawyerOpt = lawyerRepository.findById(id);
             if (lawyerOpt.isEmpty()) {
@@ -262,7 +262,7 @@ public class AdminController {
 
     // Delete Lawyer
     @DeleteMapping("/lawyers/{id}")
-    public ResponseEntity<Map<String, String>> deleteLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id) {
         try {
             if (!lawyerRepository.existsById(id)) {
                 return ResponseEntity.notFound().build();
@@ -306,7 +306,7 @@ public class AdminController {
 
     // Get Case by ID
     @GetMapping("/cases/{id}")
-    public ResponseEntity<CaseDTO> getCaseById(@PathVariable Long id) {
+    public ResponseEntity<CaseDTO> getCaseById(@PathVariable("id") Long id) {
         try {
             return caseRepository.findById(id)
                             .map(caseService::convertToDTO)
@@ -319,7 +319,7 @@ public class AdminController {
 
     // Update Case
     @PutMapping("/cases/{id}")
-    public ResponseEntity<CaseDTO> updateCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id, @RequestBody Case caseUpdate) {
+    public ResponseEntity<CaseDTO> updateCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id, @RequestBody Case caseUpdate) {
         try {
             Optional<Case> caseOpt = caseRepository.findById(id);
             if (caseOpt.isEmpty()) {
@@ -347,7 +347,7 @@ public class AdminController {
 
     // Reassign Case
     @PutMapping("/cases/{id}/reassign")
-    public ResponseEntity<CaseDTO> reassignCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id, @RequestBody Map<String, Long> requestData) {
+    public ResponseEntity<CaseDTO> reassignCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id, @RequestBody Map<String, Long> requestData) {
         try {
             Optional<Case> caseOpt = caseRepository.findById(id);
             if (caseOpt.isEmpty()) {
@@ -373,7 +373,7 @@ public class AdminController {
 
     // Verify Lawyer
     @PutMapping("/lawyers/{id}/verify")
-    public ResponseEntity<Lawyer> verifyLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id, @RequestParam(defaultValue = "true") boolean verified) {
+    public ResponseEntity<Lawyer> verifyLawyer(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id, @RequestParam(defaultValue = "true") boolean verified) {
         try {
             Optional<Lawyer> lawyerOpt = lawyerRepository.findById(id);
             if (lawyerOpt.isEmpty()) {
@@ -393,7 +393,7 @@ public class AdminController {
 
     // Delete Case
     @DeleteMapping("/cases/{id}")
-    public ResponseEntity<Map<String, String>> deleteCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteCase(jakarta.servlet.http.HttpServletRequest request, @PathVariable("id") Long id) {
         try {
             if (!caseRepository.existsById(id)) {
                 return ResponseEntity.notFound().build();

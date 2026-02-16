@@ -23,7 +23,7 @@ public class OfferController {
 
     @PostMapping("/cases/{caseId}")
     public ResponseEntity<OfferDTO> submitOffer(
-            @PathVariable Long caseId,
+            @PathVariable("caseId") Long caseId,
             @Valid @RequestBody CreateOfferRequest request,
             Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -42,7 +42,7 @@ public class OfferController {
 
     @DeleteMapping("/{offerId}")
     public ResponseEntity<Void> withdrawOffer(
-            @PathVariable Long offerId,
+            @PathVariable("offerId") Long offerId,
             Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long lawyerId = userPrincipal.getUserId();
