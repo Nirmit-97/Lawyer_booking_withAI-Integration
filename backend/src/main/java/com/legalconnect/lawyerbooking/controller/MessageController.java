@@ -55,15 +55,15 @@ public class MessageController {
     }
 
     @GetMapping("/case/{caseId}")
-    public ResponseEntity<List<MessageDTO>> getMessagesByCaseId(@PathVariable Long caseId) {
+    public ResponseEntity<List<MessageDTO>> getMessagesByCaseId(@PathVariable("caseId") Long caseId) {
         List<MessageDTO> messages = messageService.getMessagesByCaseId(caseId);
         return ResponseEntity.ok(messages);
     }
 
     @GetMapping("/receiver/{receiverId}/{receiverType}")
     public ResponseEntity<List<MessageDTO>> getMessagesByReceiver(
-            @PathVariable Long receiverId,
-            @PathVariable String receiverType) {
+            @PathVariable("receiverId") Long receiverId,
+            @PathVariable("receiverType") String receiverType) {
         List<MessageDTO> messages = messageService.getMessagesByReceiver(receiverId, receiverType);
         return ResponseEntity.ok(messages);
     }
@@ -80,8 +80,8 @@ public class MessageController {
 
     @GetMapping("/unread-count/{receiverId}/{receiverType}")
     public ResponseEntity<Map<String, Long>> getUnreadMessageCount(
-            @PathVariable Long receiverId,
-            @PathVariable String receiverType) {
+            @PathVariable("receiverId") Long receiverId,
+            @PathVariable("receiverType") String receiverType) {
         long count = messageService.getUnreadMessageCount(receiverId, receiverType);
         return ResponseEntity.ok(Map.of("count", count));
     }

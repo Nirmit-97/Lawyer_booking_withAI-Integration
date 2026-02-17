@@ -298,8 +298,7 @@ public class CaseService {
         }
         
         // Return unassigned PUBLISHED cases that match this lawyer's specializations
-        return caseRepository.findForLawyer(lawyerId, specs).stream()
-                .filter(c -> c.getLawyerId() == null) // Only unassigned
+        return caseRepository.findUnassignedBySpecializations(specs).stream()
                 .filter(c -> c.getCaseStatus() == CaseStatus.PUBLISHED || 
                              c.getCaseStatus() == CaseStatus.UNDER_REVIEW ||
                              c.getCaseStatus() == CaseStatus.PENDING_APPROVAL ||

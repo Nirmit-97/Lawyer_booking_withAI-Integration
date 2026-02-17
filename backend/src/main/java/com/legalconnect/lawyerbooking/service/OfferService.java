@@ -153,7 +153,7 @@ public class OfferService {
 
         // Mark as viewed
         for (Offer offer : offers) {
-            if (!offer.isViewedByUser()) {
+            if (!Boolean.TRUE.equals(offer.getViewedByUser())) {
                 offer.setViewedByUser(true);
                 offerRepository.save(offer);
             }
@@ -203,7 +203,7 @@ public class OfferService {
         dto.setConsultationType(offer.getConsultationType());
         dto.setMilestonePlan(offer.getMilestonePlan());
         dto.setStatus(offer.getStatus());
-        dto.setViewedByUser(offer.isViewedByUser());
+        dto.setViewedByUser(Boolean.TRUE.equals(offer.getViewedByUser()));
         dto.setCreatedAt(offer.getCreatedAt());
         dto.setExpiresAt(offer.getExpiresAt());
         dto.setAcceptedAt(offer.getAcceptedAt());

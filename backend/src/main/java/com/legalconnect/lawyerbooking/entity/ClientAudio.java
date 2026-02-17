@@ -48,34 +48,62 @@ public class ClientAudio {
     @Column(name = "masked_gujarati_audio", columnDefinition = "LONGBLOB")
     private byte[] maskedGujaratiAudio;
 
+    @Column(name = "gender", length = 20)
+    private String gender; // MALE, FEMALE, or NEUTRAL
+
     // getters & setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getLanguage() { return language; }
-    public void setLanguage(String language) { this.language = language; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getOriginalEnglishText() { return originalEnglishText; }
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getOriginalEnglishText() {
+        return originalEnglishText;
+    }
+
     public void setOriginalEnglishText(String originalEnglishText) {
         this.originalEnglishText = originalEnglishText;
     }
 
-    public String getMaskedEnglishText() { return maskedEnglishText; }
+    public String getMaskedEnglishText() {
+        return maskedEnglishText;
+    }
+
     public void setMaskedEnglishText(String maskedEnglishText) {
         this.maskedEnglishText = maskedEnglishText;
     }
 
-    public byte[] getMaskedTextAudio() { return maskedTextAudio; }
+    public byte[] getMaskedTextAudio() {
+        return maskedTextAudio;
+    }
+
     public void setMaskedTextAudio(byte[] maskedTextAudio) {
         this.maskedTextAudio = maskedTextAudio;
     }
 
-    public String getMaskedGujaratiText() { return maskedGujaratiText; }
+    public String getMaskedGujaratiText() {
+        return maskedGujaratiText;
+    }
+
     public void setMaskedGujaratiText(String maskedGujaratiText) {
         this.maskedGujaratiText = maskedGujaratiText;
     }
 
-    public byte[] getMaskedGujaratiAudio() { return maskedGujaratiAudio; }
+    public byte[] getMaskedGujaratiAudio() {
+        return maskedGujaratiAudio;
+    }
+
     public void setMaskedGujaratiAudio(byte[] maskedGujaratiAudio) {
         this.maskedGujaratiAudio = maskedGujaratiAudio;
     }
@@ -121,5 +149,13 @@ public class ClientAudio {
         if (caseEntity != null) {
             this.caseId = caseEntity.getId();
         }
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 }

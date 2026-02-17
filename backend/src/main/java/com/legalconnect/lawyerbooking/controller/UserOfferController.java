@@ -21,7 +21,7 @@ public class UserOfferController {
 
     @GetMapping("/{caseId}/offers")
     public ResponseEntity<List<OfferDTO>> getOffersForCase(
-            @PathVariable Long caseId,
+            @PathVariable("caseId") Long caseId,
             Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long userId = userPrincipal.getUserId();
@@ -31,8 +31,8 @@ public class UserOfferController {
 
     @PostMapping("/{caseId}/offers/{offerId}/accept")
     public ResponseEntity<String> acceptOffer(
-            @PathVariable Long caseId,
-            @PathVariable Long offerId,
+            @PathVariable("caseId") Long caseId,
+            @PathVariable("offerId") Long offerId,
             Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long userId = userPrincipal.getUserId();

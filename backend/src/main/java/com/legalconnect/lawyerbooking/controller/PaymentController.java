@@ -68,7 +68,7 @@ public class PaymentController {
 
     @GetMapping("/{paymentId}")
     public ResponseEntity<PaymentResponseDTO> getPaymentStatus(
-            @PathVariable Long paymentId,
+            @PathVariable("paymentId") Long paymentId,
             Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long userId = userPrincipal.getUserId();

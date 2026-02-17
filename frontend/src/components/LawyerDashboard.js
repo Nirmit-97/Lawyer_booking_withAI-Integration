@@ -35,7 +35,8 @@ function LawyerDashboard() {
     const navigate = useNavigate();
 
     // Safety return for unauthorized access (though ProtectedRoute handles this)
-    if (!user || user.role !== 'lawyer') return null;
+    // Safety return moved to bottom to prevent Hook errors
+
 
     const handleLogout = useCallback(() => {
         // Stop any playing audio before logout
@@ -98,7 +99,8 @@ function LawyerDashboard() {
         } catch (err) {
             console.error('Error fetching cases:', err);
             if (err.response?.status !== 401) {
-                toast.error('Failed to load cases');
+                console.error('Failed to load cases:', err.response?.data || err.message);
+                toast.error('Failed to load cases: ' + (err.response?.data?.message || err.message));
             }
         } finally {
             setCasesLoading(false);
@@ -374,6 +376,9 @@ function LawyerDashboard() {
             setPlayingRecordId(null);
         }
     };
+
+    // Safety return for unauthorized access (though ProtectedRoute handles this)
+    if (!user || user.role !== 'lawyer') return null;
 
     return (
         <div className="dashboard-container min-h-screen bg-background-light dark:bg-background-dark p-6 lg:p-12 font-display">

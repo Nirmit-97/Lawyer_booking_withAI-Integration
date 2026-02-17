@@ -20,7 +20,7 @@ public class OpenAITextToSpeechService {
     private String apiKey;
 
     private static final String TTS_URL = "https://api.openai.com/v1/audio/speech";
-    
+
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
@@ -30,33 +30,49 @@ public class OpenAITextToSpeechService {
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
-     * Converts text to speech using OpenAI TTS API (English)
+     * Converts text to speech using OpenAI TTS API (English, neutral voice)
+     * 
      * @param text The text to convert to speech
      * @return Byte array containing the audio data (MP3 format)
      */
     public byte[] textToSpeech(String text) {
-        return textToSpeech(text, "en");
+        return textToSpeech(text, "en", "NEUTRAL");
     }
 
     /**
-     * Converts text to speech using OpenAI TTS API with specified language
-     * @param text The text to convert to speech
+     * Converts text to speech using OpenAI TTS API with specified language (neutral
+     * voice)
+     * 
+     * @param text         The text to convert to speech
      * @param languageCode Language code (e.g., "en" for English, "gu" for Gujarati)
      * @return Byte array containing the audio data (MP3 format)
      */
     public byte[] textToSpeech(String text, String languageCode) {
+        return textToSpeech(text, languageCode, "NEUTRAL");
+    }
+
+    /**
+     * Converts text to speech using OpenAI TTS API with specified language and
+     * gender
+     * 
+     * @param text         The text to convert to speech
+     * @param languageCode Language code (e.g., "en" for English, "gu" for Gujarati)
+     * @param gender       Gender for voice selection ("MALE", "FEMALE", or
+     *                     "NEUTRAL")
+     * @return Byte array containing the audio data (MP3 format)
+     */
+    public byte[] textToSpeech(String text, String languageCode, String gender) {
         if (text == null || text.trim().isEmpty()) {
             throw new IllegalArgumentException("Text cannot be null or empty");
         }
 
         try {
-            // Build the JSON request body
-            String requestBody = buildTTSRequest(text, languageCode);
+            // Build the JSON request body with gender
+            String requestBody = buildTTSRequest(text, languageCode, gender);
 
             RequestBody body = RequestBody.create(
                     requestBody,
-                    MediaType.parse("application/json; charset=utf-8")
-            );
+                    MediaType.parse("application/json; charset=utf-8"));
 
             Request request = new Request.Builder()
                     .url(TTS_URL)
@@ -77,7 +93,8 @@ public class OpenAITextToSpeechService {
                 // TTS API returns audio bytes directly
                 if (response.body() != null) {
                     byte[] audioBytes = response.body().bytes();
-                    logger.info("Successfully generated audio: {} bytes", audioBytes.length);
+                    logger.info("Successfully generated audio: {} bytes (gender: {}, language: {})",
+                            audioBytes.length, gender, languageCode);
                     return audioBytes;
                 } else {
                     logger.error("OpenAI TTS API returned empty response body");
@@ -97,24 +114,53 @@ public class OpenAITextToSpeechService {
 
     /**
      * Builds the JSON request body for OpenAI TTS API
-     * @param text The text to convert to speech
+     * 
+     * @param text         The text to convert to speech
      * @param languageCode Language code (e.g., "en" for English, "gu" for Gujarati)
+     * @param gender       Gender of the speaker ("MALE", "FEMALE", or "NEUTRAL")
      * @return JSON string for the request
      */
-    private String buildTTSRequest(String text, String languageCode) throws Exception {
-        // Using tts-1 model (high quality) - you can also use tts-1-hd for even better quality
-        // Voice options: alloy, echo, fable, onyx, nova, shimmer
+    private String buildTTSRequest(String text, String languageCode, String gender) throws Exception {
+        // Using tts-1 model (high quality) - you can also use tts-1-hd for even better
+        // quality
         ObjectNode requestJson = mapper.createObjectNode();
         requestJson.put("model", "tts-1");
         requestJson.put("input", text);
-        
-        // Select voice based on language - using "nova" for Gujarati as it works well with Indian languages
-        // For English, keep "alloy" as default
-        String voice = "gu".equals(languageCode) ? "nova" : "alloy";
+
+        // Select voice based on gender and language
+        String voice = selectVoice(languageCode, gender);
         requestJson.put("voice", voice);
         requestJson.put("response_format", "mp3");
-        
+
         return mapper.writeValueAsString(requestJson);
     }
-}
 
+    /**
+     * Selects appropriate OpenAI voice based on language and gender
+     * 
+     * @param languageCode Language code
+     * @param gender       Detected gender ("MALE", "FEMALE", or "NEUTRAL")
+     * @return Voice name for OpenAI TTS
+     */
+    private String selectVoice(String languageCode, String gender) {
+        // For Gujarati, use voices that work well with Indian languages
+        if ("gu".equals(languageCode)) {
+            if ("MALE".equalsIgnoreCase(gender)) {
+                return "onyx"; // Deep male voice
+            } else if ("FEMALE".equalsIgnoreCase(gender)) {
+                return "shimmer"; // Clear female voice
+            } else {
+                return "nova"; // Neutral, works well for Gujarati
+            }
+        }
+
+        // For English
+        if ("MALE".equalsIgnoreCase(gender)) {
+            return "onyx"; // Deep male voice
+        } else if ("FEMALE".equalsIgnoreCase(gender)) {
+            return "shimmer"; // Clear female voice
+        } else {
+            return "alloy"; // Neutral default
+        }
+    }
+}

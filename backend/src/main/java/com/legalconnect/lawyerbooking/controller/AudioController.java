@@ -127,7 +127,7 @@ public class AudioController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<ClientAudioDTO> getRecordById(@PathVariable Long id) {
+    public ResponseEntity<ClientAudioDTO> getRecordById(@PathVariable("id") Long id) {
         ClientAudio record = repository.findById(id)
             .orElseThrow(() -> new RuntimeException("Record not found with id: " + id));
         

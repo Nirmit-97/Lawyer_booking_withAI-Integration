@@ -35,12 +35,18 @@ public class TTSController {
             logger.info("Received TTS request for caseId: {}, language: {}", caseId, language);
 
             // 1. Retrieve ClientAudio by caseId
-            // Note: We assume one audio record per case for now. 
+            // Note: We assume one audio record per case for now.
             // If multiple exist (unlikely in current flow), we take the first one.
             ClientAudio clientAudio = clientAudioRepository.findAllAudio().stream()
-                .filter(ca -> caseId.equals(ca.getCaseId()))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Audio record not found for case ID: " + caseId));
+                    .filter(ca -> caseId.equals(ca.getCaseId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("Audio record not found for case ID: " + caseId));
+
+            // Get detected gender (default to NEUTRAL if not set)
+            logger.info("ClientAudio ID: {}, CaseID: {}, Gender from DB: '{}'",
+                    clientAudio.getId(), clientAudio.getCaseId(), clientAudio.getGender());
+            String gender = clientAudio.getGender() != null ? clientAudio.getGender() : "NEUTRAL";
+            logger.info("Using gender: {} for TTS generation", gender);
 
             byte[] audioBytes = null;
 
@@ -50,14 +56,14 @@ public class TTSController {
                     logger.info("Returning CACHED Gujarati audio for case {}", caseId);
                     audioBytes = clientAudio.getMaskedGujaratiAudio();
                 } else {
-                    // Generate new
-                    logger.info("Generating NEW Gujarati audio for case {}", caseId);
+                    // Generate new with gender
+                    logger.info("Generating NEW Gujarati audio for case {} with gender: {}", caseId, gender);
                     String textToSpeak = clientAudio.getMaskedGujaratiText();
                     if (textToSpeak == null || textToSpeak.isEmpty()) {
                         return ResponseEntity.badRequest().body(Map.of("error", "No Gujarati text available to speak"));
                     }
-                    audioBytes = ttsService.textToSpeech(textToSpeak, "gu");
-                    
+                    audioBytes = ttsService.textToSpeech(textToSpeak, "gu", gender);
+
                     // Save to DB (Cache)
                     clientAudio.setMaskedGujaratiAudio(audioBytes);
                     clientAudioRepository.save(clientAudio);
@@ -68,14 +74,14 @@ public class TTSController {
                     logger.info("Returning CACHED English audio for case {}", caseId);
                     audioBytes = clientAudio.getMaskedTextAudio();
                 } else {
-                    // Generate new
-                    logger.info("Generating NEW English audio for case {}", caseId);
+                    // Generate new with gender
+                    logger.info("Generating NEW English audio for case {} with gender: {}", caseId, gender);
                     String textToSpeak = clientAudio.getMaskedEnglishText();
                     if (textToSpeak == null || textToSpeak.isEmpty()) {
                         return ResponseEntity.badRequest().body(Map.of("error", "No English text available to speak"));
                     }
-                    audioBytes = ttsService.textToSpeech(textToSpeak, "en");
-                    
+                    audioBytes = ttsService.textToSpeech(textToSpeak, "en", gender);
+
                     // Save to DB (Cache)
                     clientAudio.setMaskedTextAudio(audioBytes);
                     clientAudioRepository.save(clientAudio);
@@ -87,7 +93,8 @@ public class TTSController {
             Map<String, String> response = new HashMap<>();
             response.put("audio", base64Audio);
             response.put("language", language);
-            
+            response.put("gender", gender);
+
             return ResponseEntity.ok(response);
 
         } catch (NumberFormatException e) {
