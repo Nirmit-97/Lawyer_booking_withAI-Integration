@@ -58,9 +58,8 @@ public class MessageService {
             throw new com.legalconnect.lawyerbooking.exception.UnauthorizedException("Sender not found: " + senderType + " ID " + senderId);
         }
 
-        // 3. Simple Access Check (Optional but good for stability)
-        // In a simplified WebSocket flow, we might skip verifyMessageAccess or refactor it 
-        // to take raw IDs. For now, let's keep it simple as requested.
+        // 3. Strict Access Check (Phase 18)
+        authorizationService.verifyMessageAccess(request.getCaseId());
 
         logger.info("Sending WebSocket message from {} {} to {} {} for case {}", 
                    senderType, senderId,
@@ -86,6 +85,9 @@ public class MessageService {
     }
 
     public List<MessageDTO> getMessagesByCaseId(Long caseId) {
+        // Enforce Phase 18 Access Gating
+        authorizationService.verifyMessageAccess(caseId);
+        
         List<Message> messages = messageRepository.findByCaseIdOrderByCreatedAtAsc(caseId);
         return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
     }

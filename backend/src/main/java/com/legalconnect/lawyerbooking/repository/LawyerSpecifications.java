@@ -37,11 +37,12 @@ public class LawyerSpecifications {
             }
 
             if (StringUtils.hasText(criteria.getAvailability())) {
-                // Determine logic for availability. For now, simple text match if field exists
-                // Or maybe we just check if availabilityInfo interacts with it.
-                // Assuming availabilityInfo contains the string (days/hours)
                 String availPattern = "%" + criteria.getAvailability().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("availabilityInfo")), availPattern));
+            }
+
+            if (criteria.getVerified() != null) {
+                predicates.add(cb.equal(root.get("verified"), criteria.getVerified()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

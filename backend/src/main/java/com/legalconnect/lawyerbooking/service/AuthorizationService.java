@@ -136,19 +136,21 @@ public class AuthorizationService {
             if (!caseEntity.getUserId().equals(senderId)) {
                 throw new UnauthorizedException("User does not have access to this case");
             }
-            // Restriction: User cannot message if case is pending approval
-            if (caseEntity.getCaseStatus() == com.legalconnect.lawyerbooking.enums.CaseStatus.PENDING_APPROVAL) {
-                logger.warn("BLOCKED: User {} attempted to message for pending case {}", senderId, caseId);
-                throw new UnauthorizedException("You must wait for the lawyer to accept the connection request before you can send messages");
+            // Restriction: Case must be IN_PROGRESS or CLOSED to access chat
+            if (caseEntity.getCaseStatus() != com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS && 
+                caseEntity.getCaseStatus() != com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) {
+                logger.warn("BLOCKED: User {} attempted to message for case {} in status {}", senderId, caseId, caseEntity.getCaseStatus());
+                throw new UnauthorizedException("Chat is only accessible once an offer is accepted and the case is in progress.");
             }
         } else if (senderType.equalsIgnoreCase("lawyer")) {
             if (caseEntity.getLawyerId() == null || !caseEntity.getLawyerId().equals(senderId)) {
                 throw new UnauthorizedException("Lawyer does not have access to this case");
             }
-            // Restriction: Lawyer cannot message if case is pending approval
-            if (caseEntity.getCaseStatus() == com.legalconnect.lawyerbooking.enums.CaseStatus.PENDING_APPROVAL) {
-                logger.warn("BLOCKED: Lawyer {} attempted to message for pending case {}", senderId, caseId);
-                throw new UnauthorizedException("You must accept the connection request before you can send messages");
+            // Restriction: Case must be IN_PROGRESS or CLOSED to access chat
+            if (caseEntity.getCaseStatus() != com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS && 
+                caseEntity.getCaseStatus() != com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) {
+                logger.warn("BLOCKED: Lawyer {} attempted to message for case {} in status {}", senderId, caseId, caseEntity.getCaseStatus());
+                throw new UnauthorizedException("Chat is only accessible once your offer is accepted and the case is in progress.");
             }
         } else {
             throw new UnauthorizedException("Invalid sender type");

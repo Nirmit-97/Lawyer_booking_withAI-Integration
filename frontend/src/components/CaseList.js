@@ -1,7 +1,7 @@
 import React from 'react';
 import { getCategoryStyle } from './CaseCard';
 
-const CaseList = ({ cases, onSelectCase, showAssignButton, userType, onAssign, onAccept, onDecline }) => {
+const CaseList = ({ cases, onSelectCase, showAssignButton, userType, onAssign, onAccept, onDecline, onPlayAudio }) => {
     if (!cases || cases.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-gray-400 bg-gray-50/50 dark:bg-white/5 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
@@ -20,6 +20,12 @@ const CaseList = ({ cases, onSelectCase, showAssignButton, userType, onAssign, o
         if (s === 'in_progress' || s === 'in-progress' || s === 'matched' || s === 'open' || s === 'new') {
             return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
         }
+        if (s === 'under_review') {
+            return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+        }
+        if (s === 'payment_pending') {
+            return 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+        }
         if (s === 'pending_approval' || s === 'pending') {
             return 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800';
         }
@@ -27,11 +33,14 @@ const CaseList = ({ cases, onSelectCase, showAssignButton, userType, onAssign, o
     };
 
     const getStatusIcon = (status) => {
-        switch (status?.toLowerCase()) {
+        const s = status?.toLowerCase() || '';
+        switch (s) {
             case 'draft': return 'draft';
             case 'published': return 'publish';
             case 'verified': return 'verified';
             case 'solved': return 'check_circle';
+            case 'under_review': return 'visibility';
+            case 'payment_pending': return 'payments';
             case 'pending_approval': return 'schedule';
             case 'in_progress': return 'rotate_right';
             default: return 'info';
@@ -113,13 +122,35 @@ const CaseList = ({ cases, onSelectCase, showAssignButton, userType, onAssign, o
                                 </td>
                                 <td className="px-6 py-6 text-right">
                                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                        {userType === 'lawyer' && onPlayAudio && (
+                                            <div className="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
+                                                <button
+                                                    onClick={() => onPlayAudio(caseItem.id, 'en')}
+                                                    className="px-2 py-1.5 text-[10px] font-black hover:text-primary transition-colors border-r border-slate-200 dark:border-white/10"
+                                                    title="Listen in English"
+                                                >
+                                                    EN
+                                                </button>
+                                                <button
+                                                    onClick={() => onPlayAudio(caseItem.id, 'gu')}
+                                                    className="px-2 py-1.5 text-[10px] font-black hover:text-primary transition-colors"
+                                                    title="Listen in Gujarati"
+                                                >
+                                                    GU
+                                                </button>
+                                                <div className="px-2 py-1.5 text-slate-400 border-l border-slate-200 dark:border-white/10 flex items-center">
+                                                    <span className="material-symbols-outlined !text-sm">volume_up</span>
+                                                </div>
+                                            </div>
+                                        )}
                                         {userType === 'lawyer' && caseItem.caseStatus?.toLowerCase() === 'pending_approval' && (
                                             <>
                                                 <button
-                                                    onClick={() => onAccept && onAccept(caseItem.id)}
-                                                    className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
+                                                    onClick={() => onSelectCase && onSelectCase(caseItem)}
+                                                    className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
                                                 >
-                                                    <span className="material-symbols-outlined !text-lg">check</span>
+                                                    <span className="material-symbols-outlined !text-sm">gavel</span>
+                                                    Review & Quote
                                                 </button>
                                                 <button
                                                     onClick={() => onDecline && onDecline(caseItem.id)}

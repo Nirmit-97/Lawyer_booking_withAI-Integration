@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { PremiumModal } from './FeedbackModal';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 
@@ -28,6 +29,10 @@ const AdminDashboard = () => {
     const [editMode, setEditMode] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState({ type: null, id: null });
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [pendingReassignCaseId, setPendingReassignCaseId] = useState(null);
 
     const { user, logout, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -181,9 +186,13 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleDelete = async (type, id) => {
-        if (!window.confirm(`Terminate ${type} entry permanently?`)) return;
+    const handleDelete = (type, id) => {
+        setPendingDelete({ type, id });
+        setShowDeleteModal(true);
+    };
 
+    const confirmDelete = async () => {
+        const { type, id } = pendingDelete;
         try {
             if (type === 'users') await adminApi.deleteUser(id);
             else if (type === 'lawyers') await adminApi.deleteLawyer(id);
@@ -200,6 +209,9 @@ const AdminDashboard = () => {
         } catch (error) {
             console.error(`Error deleting ${type}:`, error);
             toast.error(`Failed to purge ${type}`);
+        } finally {
+            setShowDeleteModal(false);
+            setPendingDelete({ type: null, id: null });
         }
     };
 
@@ -236,18 +248,25 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleReassignCase = async (caseId) => {
-        const lawyerId = prompt('Enter new Lawyer ID:');
+    const handleReassignCase = (caseId) => {
+        setPendingReassignCaseId(caseId);
+        setShowReassignModal(true);
+    };
+
+    const confirmReassignCase = async (lawyerId) => {
         if (!lawyerId) return;
 
         try {
-            await adminApi.reassignCase(caseId, parseInt(lawyerId));
+            await adminApi.reassignCase(pendingReassignCaseId, parseInt(lawyerId));
             toast.success('Case reassigned successfully');
             fetchCases();
             fetchStats();
         } catch (error) {
             console.error('Error reassigning case:', error);
             toast.error('Failed to reassign case');
+        } finally {
+            setShowReassignModal(false);
+            setPendingReassignCaseId(null);
         }
     };
 
@@ -786,6 +805,27 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                 )}
+
+                <PremiumModal
+                    isOpen={showDeleteModal}
+                    onClose={() => setShowDeleteModal(false)}
+                    onConfirm={confirmDelete}
+                    title="Protocol Termination"
+                    message={`Confirm permanent destruction of this ${pendingDelete.type} entry? This operation is IRREVERSIBLE.`}
+                    confirmText="Terminate"
+                    variant="danger"
+                />
+
+                <PremiumModal
+                    isOpen={showReassignModal}
+                    onClose={() => setShowReassignModal(false)}
+                    onConfirm={confirmReassignCase}
+                    title="Protocol Reassignment"
+                    message="Target a matching Legal Counsel by their System Identity ID."
+                    confirmText="Reassign Counsel"
+                    type="prompt"
+                    placeholder="Enter Lawyer ID..."
+                />
             </main>
 
             {/* Modal for View/Edit - Modernized */}

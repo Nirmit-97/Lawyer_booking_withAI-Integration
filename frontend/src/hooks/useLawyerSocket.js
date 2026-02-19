@@ -7,7 +7,8 @@ const useLawyerSocket = ({
     lawyerProfileRef,
     onNewRequest,
     onCaseAssigned,
-    onCaseDeleted
+    onCaseDeleted,
+    onCaseUpdated
 }) => {
     const clientRef = useRef(null);
 
@@ -66,6 +67,8 @@ const useLawyerSocket = ({
                         if (onCaseAssigned) onCaseAssigned(update.caseId);
                     } else if (update.type === 'CASE_DELETED') {
                         if (onCaseDeleted) onCaseDeleted(update.caseId);
+                    } else if (update.type === 'CASE_UPDATED') {
+                        if (onCaseUpdated) onCaseUpdated(update.caseId);
                     }
                 });
             },
