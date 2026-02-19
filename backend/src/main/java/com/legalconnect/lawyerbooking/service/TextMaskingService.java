@@ -39,6 +39,13 @@ public class TextMaskingService {
     private static final String MASKING_PROMPT = """
             You are a privacy protection assistant. Your task is to mask ONLY personal information in the given legal case text, while preserving ALL case-related information.
 
+            CRITICAL INSTRUCTIONS:
+            1. Return ONLY the masked text. 
+            2. DO NOT include any introductory text, acknowledgments, or closing statements.
+            3. DO NOT ask for more information or clarification.
+            4. If the text is empty or doesn't seem to contain PII, return the text as is.
+            5. NEVER respond with phrases like "Please provide the text" or "How can I help you".
+
             MASK these personal information types:
             - Names of people (first names, last names, full names)
             - Phone numbers (any format)
@@ -67,7 +74,7 @@ public class TextMaskingService {
 
             Important: Maintain the original sentence structure, grammar, and flow. Only replace the personal information with the appropriate mask tokens. Do not change any case-related information, legal facts, or case descriptions.
 
-            Text to mask:
+            TEXT TO MASK:
             """;
 
     /**

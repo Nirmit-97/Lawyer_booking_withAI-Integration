@@ -367,7 +367,7 @@ public class CaseService {
                 eventType,
                 oldStatus.name(),
                 newStatus.name(),
-                (newStatus == CaseStatus.PENDING_APPROVAL ? "Pending approval from: " : "Assigned to: ") + lawyer.getFullName(),
+                (newStatus == CaseStatus.PENDING_APPROVAL ? "Invitation sent to: " : "Assigned to: ") + lawyer.getFullName(),
                 currentUser.getUserId(),
                 currentUser.getRole()
             );
@@ -501,33 +501,7 @@ public class CaseService {
 
     @Transactional
     public CaseDTO acceptCaseRequest(Long caseId) {
-        Case caseEntity = caseRepository.findById(caseId)
-            .orElseThrow(() -> new ResourceNotFoundException("Case not found"));
-            
-        if (caseEntity.getCaseStatus() != CaseStatus.PENDING_APPROVAL) {
-            throw new BadRequestException("Case is not in pending approval state");
-        }
-
-        com.legalconnect.lawyerbooking.security.UserPrincipal currentUser = authorizationService.getCurrentUser();
-        if (!caseEntity.getLawyerId().equals(currentUser.getUserId())) {
-            throw new UnauthorizedException("Only the assigned lawyer can accept this request");
-        }
-
-        CaseStatus oldStatus = caseEntity.getCaseStatus();
-        caseEntity.setCaseStatus(CaseStatus.IN_PROGRESS);
-        Case saved = caseRepository.save(caseEntity);
-
-        auditLogService.logEvent(
-            caseId,
-            "CASE_ACCEPTED",
-            oldStatus.name(),
-            CaseStatus.IN_PROGRESS.name(),
-            "Lawyer accepted the case assignment",
-            currentUser.getUserId(),
-            currentUser.getRole()
-        );
-
-        return convertToDTO(saved);
+        throw new BadRequestException("Direct acceptance is no longer supported. Please submit a proposal to the client to initiate payment and start the case.");
     }
 
     @Transactional

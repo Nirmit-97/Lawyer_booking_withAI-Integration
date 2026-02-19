@@ -54,15 +54,24 @@ function UserDashboard() {
   };
 
   const handleAudioUploadSuccess = async (data) => {
-    // Fetch cases to get the newly created draft case
+    // 1. Refresh cases list to sync with backend
     await fetchCases();
 
-    // Find the most recent draft case (should be the one just created)
-    const response = await casesApi.getByUser(userId);
-    const draftCase = response.data.find(c => c.caseStatus === 'DRAFT');
+    // 2. Identify the draft ID: Prefer the one returned directly by the API
+    if (data && data.caseId) {
+      console.log('Redirecting to new case ID:', data.caseId);
+      setDraftCaseId(data.caseId);
+    } else {
+      // Fallback: Find the MOST RECENT draft case (last in array usually if sorted by ID)
+      const response = await casesApi.getByUser(userId);
+      const userCases = Array.isArray(response.data) ? response.data : [];
+      const drafts = userCases.filter(c => c.caseStatus === 'DRAFT');
 
-    if (draftCase) {
-      setDraftCaseId(draftCase.id);
+      if (drafts.length > 0) {
+        // Sort by ID descending to get the newest
+        const latestDraft = drafts.sort((a, b) => b.id - a.id)[0];
+        setDraftCaseId(latestDraft.id);
+      }
     }
   }
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { offersApi } from '../utils/api';
+import { toast } from 'react-toastify';
+import { PremiumModal } from './FeedbackModal';
 import './OffersList.css';
 
 const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
@@ -7,6 +9,8 @@ const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [accepting, setAccepting] = useState(null);
+    const [showAcceptModal, setShowAcceptModal] = useState(false);
+    const [selectedOfferId, setSelectedOfferId] = useState(null);
 
     useEffect(() => {
         fetchOffers();
@@ -24,23 +28,27 @@ const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
         }
     };
 
-    const handleAcceptOffer = async (offerId) => {
-        if (!window.confirm('Are you sure you want to accept this offer? This will reject all other offers.')) {
-            return;
-        }
+    const handleAcceptOffer = (offerId) => {
+        setSelectedOfferId(offerId);
+        setShowAcceptModal(true);
+    };
 
+    const confirmAcceptOffer = async () => {
+        const offerId = selectedOfferId;
         try {
             setAccepting(offerId);
             await offersApi.accept(caseId, offerId);
-            alert('Offer accepted! Please proceed to payment.');
+            toast.success('Offer accepted! Please proceed to payment.');
             if (onOfferAccepted) {
                 onOfferAccepted(offerId);
             }
             fetchOffers(); // Refresh offers
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to accept offer');
+            toast.error(err.response?.data?.message || 'Failed to accept offer');
         } finally {
             setAccepting(null);
+            setShowAcceptModal(false);
+            setSelectedOfferId(null);
         }
     };
 
@@ -72,7 +80,7 @@ const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
         );
     }
 
-    const canAcceptOffers = caseStatus === 'UNDER_REVIEW';
+    const canAcceptOffers = caseStatus === 'UNDER_REVIEW' || caseStatus === 'PENDING_APPROVAL';
 
     return (
         <div className="offers-list">
@@ -157,6 +165,16 @@ const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
                     </div>
                 ))}
             </div>
+
+            <PremiumModal
+                isOpen={showAcceptModal}
+                onClose={() => setShowAcceptModal(false)}
+                onConfirm={confirmAcceptOffer}
+                title="Accept Offer"
+                message="Are you sure you want to accept this offer? This will officially appoint the lawyer and reject all other pending proposals."
+                confirmText="Accept & Proceed"
+                variant="success"
+            />
         </div>
     );
 };

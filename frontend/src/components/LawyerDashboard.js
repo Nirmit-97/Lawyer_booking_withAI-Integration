@@ -31,6 +31,8 @@ function LawyerDashboard() {
     const lawyerProfileRef = useRef(null);
     const [broadcastMatches, setBroadcastMatches] = useState([]); // General pool matching specializations
     const [activeRequests, setActiveRequests] = useState([]); // Direct connection requests (PENDING_APPROVAL)
+    const [pipelineCases, setPipelineCases] = useState([]); // UNDER_REVIEW, PAYMENT_PENDING
+    const [historyCases, setHistoryCases] = useState([]); // CLOSED
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -74,12 +76,16 @@ function LawyerDashboard() {
             const assignedResponse = await casesApi.getByLawyer(lawyerId);
             const allAssigned = Array.isArray(assignedResponse.data) ? assignedResponse.data : [];
 
-            // Categorize into Requests (PENDING_APPROVAL) vs Active (IN_PROGRESS)
-            const requests = allAssigned.filter(c => c.caseStatus?.toLowerCase() === 'pending_approval');
-            const active = allAssigned.filter(c => c.caseStatus?.toLowerCase() !== 'pending_approval');
+            // Categorize into Requests (PENDING_APPROVAL) vs Pipeline vs Active (IN_PROGRESS) vs History (CLOSED)
+            const requests = allAssigned.filter(c => c.caseStatus?.toUpperCase() === 'PENDING_APPROVAL');
+            const pipeline = allAssigned.filter(c => c.caseStatus?.toUpperCase() === 'UNDER_REVIEW' || c.caseStatus?.toUpperCase() === 'PAYMENT_PENDING');
+            const active = allAssigned.filter(c => c.caseStatus?.toUpperCase() === 'IN_PROGRESS');
+            const history = allAssigned.filter(c => c.caseStatus?.toUpperCase() === 'CLOSED');
 
             setActiveRequests(requests);
+            setPipelineCases(pipeline);
             setCases(active);
+            setHistoryCases(history);
 
             // Create a set of IDs already assigned to this lawyer for filtering
             const myCaseIds = new Set(allAssigned.map(c => c.id));
@@ -171,6 +177,8 @@ function LawyerDashboard() {
         // Remove from ALL lists
         setCases(prev => prev.filter(c => c.id !== caseId));
         setActiveRequests(prev => prev.filter(c => c.id !== caseId));
+        setPipelineCases(prev => prev.filter(c => c.id !== caseId));
+        setHistoryCases(prev => prev.filter(c => c.id !== caseId));
         setUnassignedCases(prev => prev.filter(c => c.id !== caseId));
         setBroadcastMatches(prev => prev.filter(r => r.caseId !== caseId));
 
@@ -188,7 +196,11 @@ function LawyerDashboard() {
         lawyerProfileRef,
         onNewRequest: handleNewRequest,
         onCaseAssigned: handleCaseAssigned,
-        onCaseDeleted: handleCaseDeleted
+        onCaseDeleted: handleCaseDeleted,
+        onCaseUpdated: (caseId) => {
+            console.log('WS CASE UPDATED:', caseId);
+            fetchCases();
+        }
     });
     // -------------------------------------------
 
@@ -209,16 +221,6 @@ function LawyerDashboard() {
         toast.info('Please submit your offer to connect with the client.');
     }, [unassignedCases, broadcastMatches]);
 
-    const handleAccept = async (caseId) => {
-        try {
-            await casesApi.accept(caseId);
-            toast.success('Case request accepted!');
-            fetchCases();
-        } catch (err) {
-            console.error('Error accepting case:', err);
-            toast.error('Failed to accept case request');
-        }
-    };
 
     const handleDecline = async (caseId) => {
         try {
@@ -377,6 +379,39 @@ function LawyerDashboard() {
         }
     };
 
+    const handlePlayCaseAudio = async (caseId, language = 'en') => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+        if (currentAudioUrl) {
+            URL.revokeObjectURL(currentAudioUrl);
+            setCurrentAudioUrl(null);
+        }
+
+        const langName = language === 'en' ? 'English' : 'Gujarati';
+        toast.loading(`Loading ${langName} case audio...`, { toastId: 'tts-loading' });
+        try {
+            const response = await ttsApi.generate(caseId, language);
+            const base64Audio = response.data.audio;
+            const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
+            const url = URL.createObjectURL(audioBlob);
+
+            setCurrentAudioUrl(url);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onended = () => {
+                URL.revokeObjectURL(url);
+                setCurrentAudioUrl(null);
+            };
+            audio.play().catch(e => console.error("Playback error:", e));
+            toast.dismiss('tts-loading');
+        } catch (error) {
+            console.error('Error generating audio:', error);
+            toast.dismiss('tts-loading');
+            toast.error('Failed to generate case audio.');
+        }
+    };
+
     // Safety return for unauthorized access (though ProtectedRoute handles this)
     if (!user || user.role !== 'lawyer') return null;
 
@@ -438,9 +473,9 @@ function LawyerDashboard() {
                 >
                     <span className="material-symbols-outlined">folder_shared</span>
                     Case Queue
-                    {(activeRequests.length + broadcastMatches.length) > 0 && (
+                    {(activeRequests.length + pipelineCases.length + broadcastMatches.length) > 0 && (
                         <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-white">
-                            {activeRequests.length + broadcastMatches.length}
+                            {activeRequests.length + pipelineCases.length + broadcastMatches.length}
                         </span>
                     )}
                 </button>
@@ -652,8 +687,35 @@ function LawyerDashboard() {
                                                 <CaseList
                                                     cases={activeRequests}
                                                     userType="lawyer"
-                                                    onAccept={handleAccept}
                                                     onDecline={handleDecline}
+                                                    onSelectCase={setSelectedCase}
+                                                />
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* Pipeline & Payments Section */}
+                                    <section className="bg-white dark:bg-surface-dark rounded-xl border border-slate-200/50 dark:border-slate-700/50 overflow-hidden shadow-sm">
+                                        <div className="p-6 border-b border-amber-500/20 bg-amber-50/30 dark:bg-amber-900/10">
+                                            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                                                <span className="material-symbols-outlined text-xl">payments</span>
+                                                <h2 className="font-bold uppercase tracking-wide text-sm">Engagement Pipeline</h2>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Offers sent or awaiting payment to start work.</p>
+                                        </div>
+
+                                        {pipelineCases.length === 0 ? (
+                                            <div className="p-12 flex flex-col items-center justify-center text-center">
+                                                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                                                    <span className="material-symbols-outlined text-slate-400 text-3xl">hourglass_empty</span>
+                                                </div>
+                                                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No cases in pipeline</h3>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <CaseList
+                                                    cases={pipelineCases}
+                                                    userType="lawyer"
                                                     onSelectCase={setSelectedCase}
                                                 />
                                             </div>
@@ -698,8 +760,8 @@ function LawyerDashboard() {
                                     <div className="bg-white dark:bg-surface-dark rounded-xl border border-slate-200/50 dark:border-slate-700/50 overflow-hidden shadow-sm sticky top-6">
                                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                             <div>
-                                                <h2 className="font-bold text-slate-800 dark:text-slate-200 text-sm">My Active Cases</h2>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cases you are currently working on.</p>
+                                                <h2 className="font-bold text-slate-800 dark:text-slate-200 text-sm">Active Engagements</h2>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Engagements where work has officially begun.</p>
                                             </div>
                                             <button
                                                 onClick={fetchCases}
@@ -740,7 +802,7 @@ function LawyerDashboard() {
                                                                     {caseItem.caseStatus?.replace('_', ' ') || 'ACTIVE'}
                                                                 </span>
                                                             </div>
-                                                            <div className="col-span-1 text-right">
+                                                            <div className="col-span-1 text-right flex items-center justify-end gap-2">
                                                                 <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">chevron_right</span>
                                                             </div>
                                                         </div>

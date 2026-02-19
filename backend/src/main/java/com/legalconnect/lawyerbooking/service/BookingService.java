@@ -199,14 +199,16 @@ public class BookingService {
     }
 
     public List<AppointmentDTO> getUserAppointments(Long userId) {
-        List<Appointment> appointments = appointmentRepository.findByUserIdOrderByAppointmentDateDesc(userId);
+        // Enforce Phase 18: Filter by IN_PROGRESS/CLOSED via Repository JOIN
+        List<Appointment> appointments = appointmentRepository.findActiveByUserId(userId);
         return appointments.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
     public List<AppointmentDTO> getLawyerAppointments(Long lawyerId) {
-        List<Appointment> appointments = appointmentRepository.findByLawyerIdOrderByAppointmentDateDesc(lawyerId);
+        // Enforce Phase 18: Filter by IN_PROGRESS/CLOSED via Repository JOIN
+        List<Appointment> appointments = appointmentRepository.findActiveByLawyerId(lawyerId);
         return appointments.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
@@ -239,7 +241,18 @@ public class BookingService {
         if (appointmentOpt.isEmpty()) {
             throw new IllegalArgumentException("Appointment not found");
         }
-        return convertToDTO(appointmentOpt.get());
+        
+        Appointment appointment = appointmentOpt.get();
+        // Phase 18: Verify associated case status
+        if (appointment.getCaseId() != null) {
+            caseRepository.findById(appointment.getCaseId()).ifPresent(c -> {
+                if (!CaseStatus.IN_PROGRESS.equals(c.getCaseStatus()) && !CaseStatus.CLOSED.equals(c.getCaseStatus())) {
+                    throw new IllegalArgumentException("Appointment details are locked until the case is active.");
+                }
+            });
+        }
+        
+        return convertToDTO(appointment);
     }
 
     @Transactional

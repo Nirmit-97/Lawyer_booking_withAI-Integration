@@ -152,7 +152,7 @@ public class CaseClassificationService {
         ArrayNode messages = mapper.createArrayNode();
         ObjectNode systemMessage = mapper.createObjectNode();
         systemMessage.put("role", "system");
-        systemMessage.put("content", "You are a helpful legal assistant.");
+        systemMessage.put("content", "You are a professional legal classification assistant. Return ONLY the requested data (Category or Title). Do not ask questions or provide conversational filler.");
         messages.add(systemMessage);
         
         ObjectNode userMessage = mapper.createObjectNode();

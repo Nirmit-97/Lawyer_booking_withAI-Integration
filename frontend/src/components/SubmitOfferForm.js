@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { offersApi } from '../utils/api';
+import { toast } from 'react-toastify';
+import { PremiumModal } from './FeedbackModal';
 import './SubmitOfferForm.css';
 
 const SubmitOfferForm = ({ caseId, onOfferSubmitted, onCancel }) => {
@@ -13,6 +15,7 @@ const SubmitOfferForm = ({ caseId, onOfferSubmitted, onCancel }) => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
     useEffect(() => {
         fetchExistingOffer();
@@ -63,7 +66,7 @@ const SubmitOfferForm = ({ caseId, onOfferSubmitted, onCancel }) => {
             };
 
             await offersApi.submit(caseId, offerData);
-            alert('Offer submitted successfully!');
+            toast.success('Offer submitted successfully!');
 
             if (onOfferSubmitted) {
                 onOfferSubmitted();
@@ -77,20 +80,21 @@ const SubmitOfferForm = ({ caseId, onOfferSubmitted, onCancel }) => {
     };
 
     const handleWithdraw = async () => {
-        if (!window.confirm('Are you sure you want to withdraw this proposal?')) {
-            return;
-        }
+        setShowWithdrawModal(true);
+    };
 
+    const confirmWithdraw = async () => {
         try {
             setSubmitting(true);
             await offersApi.withdraw(existingOffer.id);
-            alert('Proposal withdrawn successfully');
+            toast.success('Proposal withdrawn successfully');
             setExistingOffer(null);
             if (onOfferSubmitted) onOfferSubmitted(); // Refresh parent view
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to withdraw proposal');
         } finally {
             setSubmitting(false);
+            setShowWithdrawModal(false);
         }
     };
 
@@ -142,6 +146,16 @@ const SubmitOfferForm = ({ caseId, onOfferSubmitted, onCancel }) => {
                         </p>
                     </div>
                 )}
+
+                <PremiumModal
+                    isOpen={showWithdrawModal}
+                    onClose={() => setShowWithdrawModal(false)}
+                    onConfirm={confirmWithdraw}
+                    title="Withdraw Proposal"
+                    message="Are you sure you want to withdraw this proposal? This action cannot be undone."
+                    confirmText="Withdraw"
+                    variant="danger"
+                />
             </div>
         );
     }

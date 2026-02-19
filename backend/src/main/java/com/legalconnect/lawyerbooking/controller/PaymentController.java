@@ -27,25 +27,16 @@ public class PaymentController {
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyPayment(
+    public ResponseEntity<PaymentResponseDTO> verifyPayment(
             @Valid @RequestBody VerifyPaymentRequest request,
             Authentication authentication) {
         
-        // Verify signature
-        if (!razorpayService.verifyPaymentSignature(
+        PaymentResponseDTO response = paymentService.verifyPayment(
                 request.getRazorpayOrderId(), 
                 request.getRazorpayPaymentId(), 
-                request.getRazorpaySignature())) {
-            return ResponseEntity.status(401).body("Invalid payment signature");
-        }
-
-        // Process successful payment
-        paymentService.handlePaymentSuccess(
-                request.getRazorpayPaymentId(), 
-                request.getRazorpayOrderId(), 
                 request.getRazorpaySignature());
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/create")

@@ -15,7 +15,8 @@ import com.legalconnect.lawyerbooking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.Map;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ public class OfferService {
     private final CaseRepository caseRepository;
     private final LawyerRepository lawyerRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${payment.max.offers.per.case:5}")
     private int maxOffersPerCase;
@@ -34,11 +36,13 @@ public class OfferService {
     public OfferService(OfferRepository offerRepository, 
                         CaseRepository caseRepository, 
                         LawyerRepository lawyerRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        SimpMessagingTemplate messagingTemplate) {
         this.offerRepository = offerRepository;
         this.caseRepository = caseRepository;
         this.lawyerRepository = lawyerRepository;
         this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -48,7 +52,8 @@ public class OfferService {
                 .orElseThrow(() -> new RuntimeException("Case not found"));
 
         if (caseEntity.getCaseStatus() != CaseStatus.PUBLISHED && 
-            caseEntity.getCaseStatus() != CaseStatus.UNDER_REVIEW) {
+            caseEntity.getCaseStatus() != CaseStatus.UNDER_REVIEW &&
+            caseEntity.getCaseStatus() != CaseStatus.PENDING_APPROVAL) {
             throw new RuntimeException("Case is not accepting offers");
         }
 
@@ -63,20 +68,28 @@ public class OfferService {
         }
 
         // Check if lawyer already submitted offer
-        if (offerRepository.existsByCaseIdAndLawyerId(caseId, lawyerId)) {
-            throw new RuntimeException("You have already submitted an offer for this case");
+        java.util.Optional<Offer> existingOffer = offerRepository.findByCaseIdAndLawyerId(caseId, lawyerId);
+        Offer offer;
+        boolean wasWithdrawn = false;
+        
+        if (existingOffer.isPresent()) {
+            offer = existingOffer.get();
+            if (offer.getStatus() == OfferStatus.WITHDRAWN) {
+                wasWithdrawn = true;
+            } else if (offer.getStatus() != OfferStatus.SUBMITTED) {
+                throw new RuntimeException("Cannot update offer: Current status is " + offer.getStatus());
+            }
+        } else {
+            // Check offer limit for NEW offers only
+            Long offerCount = offerRepository.countByCaseIdAndStatus(caseId, OfferStatus.SUBMITTED);
+            if (offerCount >= maxOffersPerCase) {
+                throw new RuntimeException("Maximum offers limit reached for this case");
+            }
+            offer = new Offer();
+            offer.setCaseId(caseId);
+            offer.setLawyerId(lawyerId);
         }
 
-        // Check offer limit
-        Long offerCount = offerRepository.countByCaseIdAndStatus(caseId, OfferStatus.SUBMITTED);
-        if (offerCount >= maxOffersPerCase) {
-            throw new RuntimeException("Maximum offers limit reached for this case");
-        }
-
-        // Create offer
-        Offer offer = new Offer();
-        offer.setCaseId(caseId);
-        offer.setLawyerId(lawyerId);
         offer.setProposedFee(request.getProposedFee());
         offer.setEstimatedTimeline(request.getEstimatedTimeline());
         offer.setProposalMessage(request.getProposalMessage());
@@ -86,12 +99,30 @@ public class OfferService {
 
         Offer savedOffer = offerRepository.save(offer);
 
-        // Update case status and offer count
-        if (caseEntity.getCaseStatus() == CaseStatus.PUBLISHED) {
-            caseEntity.setCaseStatus(CaseStatus.UNDER_REVIEW);
+        // Update case status and offer count (if new or re-submitted)
+        if (existingOffer.isEmpty() || wasWithdrawn) {
+            CaseStatus oldStatus = caseEntity.getCaseStatus();
+            if (oldStatus == CaseStatus.PUBLISHED || oldStatus == CaseStatus.PENDING_APPROVAL) {
+                caseEntity.setCaseStatus(CaseStatus.UNDER_REVIEW);
+            }
+            
+            // Recalculate accurate count
+            Long activeOffersCount = offerRepository.countByCaseIdAndStatus(caseId, OfferStatus.SUBMITTED);
+            caseEntity.setOfferCount(activeOffersCount.intValue());
+            caseRepository.save(caseEntity);
+
+            // Broadcast update
+            try {
+                messagingTemplate.convertAndSend("/topic/lawyer/updates", Map.of(
+                    "type", "CASE_UPDATED",
+                    "caseId", caseId,
+                    "status", caseEntity.getCaseStatus().name(),
+                    "offerCount", caseEntity.getOfferCount()
+                ));
+            } catch (Exception e) {
+                // Non-blocking
+            }
         }
-        caseEntity.setOfferCount(caseEntity.getOfferCount() + 1);
-        caseRepository.save(caseEntity);
 
         return convertToDTO(savedOffer);
     }
@@ -110,8 +141,8 @@ public class OfferService {
         }
 
         // Validate case status
-        if (caseEntity.getCaseStatus() != CaseStatus.UNDER_REVIEW) {
-            throw new RuntimeException("Case is not in UNDER_REVIEW status");
+        if (caseEntity.getCaseStatus() != CaseStatus.UNDER_REVIEW && caseEntity.getCaseStatus() != CaseStatus.PENDING_APPROVAL) {
+            throw new RuntimeException("Case is not in a state where offers can be accepted");
         }
 
         // Validate offer status
@@ -180,14 +211,31 @@ public class OfferService {
             throw new RuntimeException("Only pending offers can be withdrawn");
         }
 
+        Long caseId = offer.getCaseId();
         offer.setStatus(OfferStatus.WITHDRAWN);
         offerRepository.save(offer);
 
-        // Decrement case offer count
-        caseRepository.findById(offer.getCaseId()).ifPresent(caseEntity -> {
-            caseEntity.setOfferCount(Math.max(0, caseEntity.getOfferCount() - 1));
-            // If it was UNDER_REVIEW and no more offers, maybe move back to PUBLISHED?
-            // For now, keep it simple.
+        // Force refresh of case status if this was the last offer
+        caseRepository.findById(caseId).ifPresent(caseEntity -> {
+            Long activeOffersCount = offerRepository.countByCaseIdAndStatus(caseId, OfferStatus.SUBMITTED);
+            caseEntity.setOfferCount(activeOffersCount.intValue());
+            
+            // If no more active offers, revert from UNDER_REVIEW to PUBLISHED
+            if (activeOffersCount == 0 && caseEntity.getCaseStatus() == CaseStatus.UNDER_REVIEW) {
+                caseEntity.setCaseStatus(CaseStatus.PUBLISHED);
+                
+                // Broadcast that the case is available again
+                try {
+                    messagingTemplate.convertAndSend("/topic/lawyer/updates", Map.of(
+                        "type", "CASE_UPDATED",
+                        "caseId", caseId,
+                        "status", "PUBLISHED"
+                    ));
+                } catch (Exception e) {
+                    // Non-blocking error
+                }
+            }
+            
             caseRepository.save(caseEntity);
         });
     }

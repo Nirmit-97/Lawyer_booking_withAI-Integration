@@ -276,15 +276,9 @@ public class AudioProcessingService {
                 caseRequest.setCaseType(com.legalconnect.lawyerbooking.enums.CaseType.OTHER);
             }
 
-            // Generate description safely (max 500 chars)
-            String description = clientAudio.getMaskedEnglishText() != null
+            caseRequest.setDescription(clientAudio.getMaskedEnglishText() != null
                     ? clientAudio.getMaskedEnglishText()
-                    : "Case created from audio upload";
-
-            if (description.length() > 500) {
-                description = description.substring(0, 497) + "...";
-            }
-            caseRequest.setDescription(description);
+                    : "Case created from audio upload");
 
             System.out.println(">>> [STEP 7] Triggering CaseService.createCase for user: " + userId);
             logger.info("Step 7: Creating case via CaseService for user {}...", userId);

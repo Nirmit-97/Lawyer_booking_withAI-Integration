@@ -118,6 +118,7 @@ public class LawyerController {
             @RequestParam(required = false) Integer minExperience,
             @RequestParam(required = false) Integer minCompletedCases,
             @RequestParam(required = false) String availability,
+            @RequestParam(required = false) Boolean verified,
             Pageable pageable) {
 
         LawyerSearchCriteria criteria = new LawyerSearchCriteria();
@@ -127,6 +128,7 @@ public class LawyerController {
         criteria.setMinExperience(minExperience);
         criteria.setMinCompletedCases(minCompletedCases);
         criteria.setAvailability(availability);
+        criteria.setVerified(verified);
 
         Specification<Lawyer> spec = LawyerSpecifications.withCriteria(criteria);
         Page<Lawyer> page = lawyerRepository.findAll(spec, pageable);

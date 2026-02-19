@@ -140,6 +140,30 @@ public class PaymentService {
     }
 
     @Transactional
+    public PaymentResponseDTO verifyPayment(String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
+        // Logic to verify payment manually if webhook fails
+        Payment payment = paymentRepository.findByGatewayOrderId(razorpayOrderId)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return convertToDTO(payment);
+        }
+
+        try {
+            // Verify signature using Razorpay SDK
+            boolean isValid = razorpayService.verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+            if (isValid) {
+                handlePaymentSuccess(razorpayPaymentId, razorpayOrderId, razorpaySignature);
+                return convertToDTO(paymentRepository.findById(payment.getId()).get());
+            } else {
+                throw new RuntimeException("Invalid payment signature");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Payment verification failed: " + e.getMessage());
+        }
+    }
+
+    @Transactional
     public void handlePaymentFailure(String razorpayOrderId, String reason) {
         Payment payment = paymentRepository.findByGatewayOrderId(razorpayOrderId)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));

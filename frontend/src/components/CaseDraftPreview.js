@@ -12,7 +12,8 @@ const CaseDraftPreview = ({ caseId, onPublish, onCancel }) => {
         caseType: '',
         description: ''
     });
-    const [audioUrl, setAudioUrl] = useState(null);
+    const [audioUrl, setAudioUrl] = useState({}); // { en: url, gu: url }
+    const [audioLanguage, setAudioLanguage] = useState('en');
     const [audioLoading, setAudioLoading] = useState(false);
     const [audioError, setAudioError] = useState(null);
 
@@ -97,8 +98,9 @@ const CaseDraftPreview = ({ caseId, onPublish, onCancel }) => {
     };
 
     const handlePlayAudio = async () => {
-        if (audioUrl) {
-            const audio = new Audio(audioUrl);
+        const lang = audioLanguage;
+        if (audioUrl[lang]) {
+            const audio = new Audio(audioUrl[lang]);
             audio.play();
             return;
         }
@@ -106,16 +108,16 @@ const CaseDraftPreview = ({ caseId, onPublish, onCancel }) => {
         setAudioLoading(true);
         setAudioError(null);
         try {
-            const response = await ttsApi.generate(caseId, 'en');
+            const response = await ttsApi.generate(caseId, lang);
             const base64Audio = response.data.audio;
             const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
             const url = URL.createObjectURL(audioBlob);
-            setAudioUrl(url);
+            setAudioUrl(prev => ({ ...prev, [lang]: url }));
             const audio = new Audio(url);
             audio.play();
         } catch (error) {
             console.error('Error generating audio:', error);
-            setAudioError('Failed to load audio. Please try again.');
+            setAudioError(`Failed to load ${lang === 'en' ? 'English' : 'Gujarati'} audio. Please try again.`);
         } finally {
             setAudioLoading(false);
         }
@@ -156,11 +158,25 @@ const CaseDraftPreview = ({ caseId, onPublish, onCancel }) => {
                     <p className="text-blue-100 text-sm">
                         AI has analyzed your audio and generated this case draft. Review and edit the details before publishing to lawyers.
                     </p>
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 bg-white/10 w-fit p-1 rounded-xl backdrop-blur-md border border-white/10">
+                            <button
+                                onClick={() => setAudioLanguage('en')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${audioLanguage === 'en' ? 'bg-white text-primary shadow-lg' : 'text-white/70 hover:text-white'}`}
+                            >
+                                English
+                            </button>
+                            <button
+                                onClick={() => setAudioLanguage('gu')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${audioLanguage === 'gu' ? 'bg-white text-primary shadow-lg' : 'text-white/70 hover:text-white'}`}
+                            >
+                                ગુજરાતી
+                            </button>
+                        </div>
                         <button
                             onClick={handlePlayAudio}
                             disabled={audioLoading}
-                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 backdrop-blur-sm"
+                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 backdrop-blur-sm w-fit"
                         >
                             {audioLoading ? (
                                 <>
@@ -170,7 +186,7 @@ const CaseDraftPreview = ({ caseId, onPublish, onCancel }) => {
                             ) : (
                                 <>
                                     <span className="material-symbols-outlined text-lg">volume_up</span>
-                                    {audioUrl ? 'Play Audio Again' : 'Play Audio Summary'}
+                                    {audioUrl[audioLanguage] ? 'Play Audio Again' : 'Play Case Audio'}
                                 </>
                             )}
                         </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { reviewsApi } from '../utils/api';
 import { toast } from 'react-toastify';
 
@@ -98,3 +98,108 @@ const FeedbackModal = ({ caseId, lawyerId, userId, onClose, onSubmitSuccess }) =
 };
 
 export default FeedbackModal;
+
+export const PremiumModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    type = 'confirm',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    placeholder = 'Type here...',
+    defaultValue = '',
+    variant = 'primary' // 'primary', 'danger', 'success'
+}) => {
+    const [inputValue, setInputValue] = useState(defaultValue);
+
+    useEffect(() => {
+        if (isOpen) {
+            setInputValue(defaultValue);
+        }
+    }, [isOpen, defaultValue]);
+
+    if (!isOpen) return null;
+
+    const handleConfirm = () => {
+        if (type === 'prompt') {
+            onConfirm(inputValue);
+        } else {
+            onConfirm();
+        }
+        onClose();
+    };
+
+    const getIcon = () => {
+        switch (variant) {
+            case 'danger': return 'warning';
+            case 'success': return 'check_circle';
+            default: return 'info';
+        }
+    };
+
+    const getIconColor = () => {
+        switch (variant) {
+            case 'danger': return 'text-red-500 bg-red-500/10';
+            case 'success': return 'text-emerald-500 bg-emerald-500/10';
+            default: return 'text-primary bg-primary/10';
+        }
+    };
+
+    const getConfirmBtnColor = () => {
+        switch (variant) {
+            case 'danger': return 'bg-red-500 hover:bg-red-600 shadow-red-500/20';
+            case 'success': return 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20';
+            default: return 'bg-primary hover:bg-blue-600 shadow-primary/20';
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/20 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border border-white/50 dark:border-slate-800 relative overflow-hidden transition-all scale-in-center">
+                {/* Decorative background circle */}
+                <div className={`absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full -mr-16 -mt-16 ${variant === 'danger' ? 'bg-red-500' : 'bg-primary'}`}></div>
+
+                <div className="relative z-10 space-y-6">
+                    <div className="text-center space-y-4">
+                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 ${getIconColor()}`}>
+                            <span className="material-symbols-outlined text-3xl">{getIcon()}</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{title}</h2>
+                        {message && <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{message}</p>}
+                    </div>
+
+                    {type === 'prompt' && (
+                        <div className="space-y-2">
+                            <input
+                                autoFocus
+                                type="text"
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder={placeholder}
+                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-primary outline-none text-slate-700 dark:text-slate-200 transition-all"
+                                onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+                            />
+                        </div>
+                    )}
+
+                    <div className="flex gap-4 pt-4">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-4 px-6 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                        >
+                            {cancelText}
+                        </button>
+                        <button
+                            onClick={handleConfirm}
+                            className={`flex-1 py-4 px-6 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] ${getConfirmBtnColor()}`}
+                        >
+                            {confirmText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -43,20 +43,37 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     /**
      * Get upcoming appointments for a user with pagination
      */
-    @Query("SELECT a FROM Appointment a WHERE a.userId = :userId " +
+    @Query("SELECT a FROM Appointment a JOIN Case c ON a.caseId = c.id " +
+           "WHERE a.userId = :userId " +
            "AND a.appointmentDate >= :now " +
            "AND a.status != 'CANCELLED' " +
+           "AND (c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS " +
+           "OR c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) " +
            "ORDER BY a.appointmentDate ASC")
     Page<Appointment> findUpcomingByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now, Pageable pageable);
     
-    /**
-     * Get upcoming appointments for a lawyer with pagination
-     */
-    @Query("SELECT a FROM Appointment a WHERE a.lawyerId = :lawyerId " +
+    @Query("SELECT a FROM Appointment a JOIN Case c ON a.caseId = c.id " +
+           "WHERE a.lawyerId = :lawyerId " +
            "AND a.appointmentDate >= :now " +
            "AND a.status != 'CANCELLED' " +
+           "AND (c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS " +
+           "OR c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) " +
            "ORDER BY a.appointmentDate ASC")
     Page<Appointment> findUpcomingByLawyerId(@Param("lawyerId") Long lawyerId, @Param("now") LocalDateTime now, Pageable pageable);
+
+    @Query("SELECT a FROM Appointment a JOIN Case c ON a.caseId = c.id " +
+           "WHERE a.userId = :userId " +
+           "AND (c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS " +
+           "OR c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) " +
+           "ORDER BY a.appointmentDate DESC")
+    List<Appointment> findActiveByUserId(Long userId);
+
+    @Query("SELECT a FROM Appointment a JOIN Case c ON a.caseId = c.id " +
+           "WHERE a.lawyerId = :lawyerId " +
+           "AND (c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.IN_PROGRESS " +
+           "OR c.caseStatus = com.legalconnect.lawyerbooking.enums.CaseStatus.CLOSED) " +
+           "ORDER BY a.appointmentDate DESC")
+    List<Appointment> findActiveByLawyerId(Long lawyerId);
     
     // LEGACY METHODS (deprecated - use paginated versions)
     

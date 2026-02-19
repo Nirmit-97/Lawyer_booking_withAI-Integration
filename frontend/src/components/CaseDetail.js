@@ -5,7 +5,7 @@ import Booking from './Booking';
 import OffersList from './OffersList';
 import RazorpayCheckout from './RazorpayCheckout';
 import SubmitOfferForm from './SubmitOfferForm';
-import { casesApi, documentsApi, timelineApi, reviewsApi } from '../utils/api';
+import { casesApi, documentsApi, timelineApi, reviewsApi, ttsApi } from '../utils/api';
 import { toast } from 'react-toastify';
 import { getToken } from '../utils/auth';
 import LawyerSearch from './LawyerSearch';
@@ -20,7 +20,7 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
     const [documents, setDocuments] = useState([]);
     const [timeline, setTimeline] = useState([]);
     const [uploading, setUploading] = useState(false);
-    const [activeTab, setActiveTab] = useState('messages'); // 'messages', 'offers', 'documents', 'timeline'
+    const [activeTab, setActiveTab] = useState('offers'); // Default to offers for Phase 18
     const [showLawyerSearch, setShowLawyerSearch] = useState(false);
     const [showBooking, setShowBooking] = useState(false);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -28,6 +28,10 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
     const [showOfferForm, setShowOfferForm] = useState(false);
     const [showPayment, setShowPayment] = useState(false);
     const [selectedOffer, setSelectedOffer] = useState(null);
+    const [audioUrl, setAudioUrl] = useState({}); // { en: url, gu: url }
+    const [audioLanguage, setAudioLanguage] = useState('en');
+    const [audioLoading, setAudioLoading] = useState(false);
+    const [audioError, setAudioError] = useState(null);
 
     const fetchCaseDetails = useCallback(async () => {
         setLoading(true);
@@ -51,8 +55,23 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
     }, [caseId]);
 
     useEffect(() => {
-        fetchCaseDetails();
+        fetchCaseDetails().then(() => {
+            // After fetching, if case is IN_PROGRESS, maybe switch to messages
+            // but for now let's just ensure activeTab is valid
+        });
     }, [fetchCaseDetails]);
+
+    // Auto-switch tab if messages is not allowed
+    useEffect(() => {
+        if (caseData) {
+            const currentStatus = caseData.caseStatus?.toUpperCase();
+            const isEngagementActive = currentStatus === 'IN_PROGRESS' || currentStatus === 'CLOSED';
+
+            if (!isEngagementActive && (activeTab === 'messages' || activeTab === 'documents' || activeTab === 'timeline')) {
+                setActiveTab('offers');
+            }
+        }
+    }, [caseData, activeTab]);
 
     const fetchDocuments = async () => {
         try {
@@ -108,13 +127,34 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
             .catch(err => toast.error('Download failed.'));
     };
 
-    const handleAccept = async () => {
+
+    const handlePlayAudio = async () => {
+        const lang = audioLanguage;
+        if (audioUrl[lang]) {
+            const audio = new Audio(audioUrl[lang]);
+            audio.play();
+            return;
+        }
+
+        setAudioLoading(true);
+        setAudioError(null);
         try {
-            await casesApi.accept(caseId);
-            toast.success('Case accepted');
-            fetchCaseDetails();
-        } catch (err) { toast.error('Failed to accept'); }
+            const response = await ttsApi.generate(caseId, lang);
+            const base64Audio = response.data.audio;
+            const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
+            const url = URL.createObjectURL(audioBlob);
+            setAudioUrl(prev => ({ ...prev, [lang]: url }));
+            const audio = new Audio(url);
+            audio.play();
+        } catch (error) {
+            console.error('Error generating audio:', error);
+            setAudioError(`Failed to load ${lang === 'en' ? 'English' : 'Gujarati'} audio.`);
+            toast.error(`Failed to generate ${lang === 'en' ? 'English' : 'Gujarati'} audio.`);
+        } finally {
+            setAudioLoading(false);
+        }
     };
+
 
     const handleDecline = async () => {
         try {
@@ -242,6 +282,42 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                         <div className="flex-1 space-y-4">
                             <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">{caseData.caseTitle}</h1>
                             <p className="text-white/70 max-w-2xl text-lg leading-relaxed">{caseData.description}</p>
+
+                            {/* Audio Playback Button & Language Toggle */}
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2 bg-white/10 w-fit p-1.5 rounded-2xl backdrop-blur-md border border-white/10">
+                                    <button
+                                        onClick={() => setAudioLanguage('en')}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${audioLanguage === 'en' ? 'bg-white text-primary shadow-lg' : 'text-white/70 hover:text-white'}`}
+                                    >
+                                        English
+                                    </button>
+                                    <button
+                                        onClick={() => setAudioLanguage('gu')}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${audioLanguage === 'gu' ? 'bg-white text-primary shadow-lg' : 'text-white/70 hover:text-white'}`}
+                                    >
+                                        ગુજરાતી
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={handlePlayAudio}
+                                    disabled={audioLoading}
+                                    className="w-fit px-6 py-3 bg-white/20 hover:bg-white/30 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 backdrop-blur-md border border-white/10"
+                                >
+                                    {audioLoading ? (
+                                        <>
+                                            <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Generating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined text-lg">volume_up</span>
+                                            {audioUrl[audioLanguage] ? 'Replay Audio' : 'Play Case Audio'}
+                                        </>
+                                    )}
+                                </button>
+                                {audioError && <p className="text-red-300 text-[9px] font-bold uppercase tracking-widest">{audioError}</p>}
+                            </div>
                         </div>
                         <div className="flex flex-col gap-4 min-w-[200px]">
                             {!isLawyer && !caseData.lawyerId && (
@@ -264,13 +340,16 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                     <div className="flex items-center gap-4 text-amber-500">
                         <span className="material-symbols-outlined text-3xl">priority_high</span>
                         <div>
-                            <p className="font-black uppercase text-xs tracking-widest">Awaiting Your Authorization</p>
-                            <p className="text-xs font-bold opacity-80">Please review the evidence and accept or decline this case.</p>
+                            <p className="font-black uppercase text-xs tracking-widest">Invitation Received</p>
+                            <p className="text-xs font-bold opacity-80">Please review the information and submit your professional proposal to the client.</p>
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={handleAccept} className="px-6 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Accept</button>
-                        <button onClick={handleDecline} className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20">Decline</button>
+                        <button onClick={() => { setActiveTab('offers'); setShowOfferForm(true); }} className="px-6 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                            <span className="material-symbols-outlined !text-sm">gavel</span>
+                            Review & Quote
+                        </button>
+                        <button onClick={handleDecline} className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20">Decline Invitation</button>
                     </div>
                 </div>
             )}
@@ -278,16 +357,23 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
             {/* Tabbed Content Area */}
             <div className="space-y-6">
                 <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 w-fit rounded-2xl border border-gray-200 dark:border-white/10">
-                    {['messages', 'offers', 'documents', 'timeline'].map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-primary text-white shadow-xl translate-y-[-1px]' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-                                }`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
+                    {['messages', 'offers', 'documents', 'timeline'].map(tab => {
+                        const isEngagementActive = status === 'IN_PROGRESS' || status === 'CLOSED';
+                        const isDisabled = !isEngagementActive && (tab === 'messages' || tab === 'documents' || tab === 'timeline');
+
+                        if (isDisabled) return null;
+
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-primary text-white shadow-xl translate-y-[-1px]' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                {tab}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="min-h-[500px]">
@@ -428,13 +514,15 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                                                         </button>
                                                     )
                                                 ) : (
-                                                    <button
-                                                        onClick={() => setShowBooking(true)}
-                                                        className="w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <span className="material-symbols-outlined !text-lg">calendar_month</span>
-                                                        Book Appointment
-                                                    </button>
+                                                    status === 'IN_PROGRESS' && (
+                                                        <button
+                                                            onClick={() => setShowBooking(true)}
+                                                            className="w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <span className="material-symbols-outlined !text-lg">calendar_month</span>
+                                                            Book Appointment
+                                                        </button>
+                                                    )
                                                 )}
                                             </div>
                                         </div>
@@ -475,7 +563,7 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                                 </>
                             ) : (
                                 <>
-                                    {(caseData.caseStatus === 'PUBLISHED' || caseData.caseStatus === 'UNDER_REVIEW') && !showOfferForm && (
+                                    {(caseData.caseStatus === 'PUBLISHED' || caseData.caseStatus === 'UNDER_REVIEW' || caseData.caseStatus === 'PENDING_APPROVAL') && !showOfferForm && (
                                         <div className="text-center py-12 bg-white dark:bg-background-dark/50 rounded-[2rem] border border-gray-100 dark:border-gray-800">
                                             <div className="max-w-md mx-auto space-y-4">
                                                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
@@ -505,7 +593,7 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                                         />
                                     )}
 
-                                    {caseData.caseStatus !== 'PUBLISHED' && caseData.caseStatus !== 'UNDER_REVIEW' && !showOfferForm && (
+                                    {caseData.caseStatus !== 'PUBLISHED' && caseData.caseStatus !== 'UNDER_REVIEW' && caseData.caseStatus !== 'PENDING_APPROVAL' && !showOfferForm && (
                                         <div className="text-center py-12 bg-gray-50 dark:bg-white/5 rounded-[2rem] border border-gray-100 dark:border-gray-800">
                                             <span className="material-symbols-outlined text-4xl text-gray-300 mb-4">lock</span>
                                             <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Case is no longer accepting offers</p>
