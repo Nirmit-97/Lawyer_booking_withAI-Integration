@@ -75,6 +75,14 @@ function UserDashboard() {
     setDraftCaseId(null);
   }
 
+  const handleSelectCase = (caseItem) => {
+    if (caseItem.caseStatus === 'DRAFT') {
+      setDraftCaseId(caseItem.id);
+    } else {
+      setSelectedCase(caseItem);
+    }
+  };
+
   // Main content switching logic
   const renderMainContent = () => {
     // Show draft preview if there's a draft case
@@ -164,7 +172,7 @@ function UserDashboard() {
                         <CaseCard
                           key={caseItem.id}
                           caseItem={caseItem}
-                          onClick={setSelectedCase}
+                          onClick={handleSelectCase}
                         />
                       ))}
                     </div>
@@ -217,7 +225,7 @@ function UserDashboard() {
               <div className="flex justify-center p-20 text-slate-400 font-bold uppercase tracking-[0.2em] text-xs animate-pulse">Establishing secure link...</div>
             ) : (
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                <CaseList cases={cases} onSelectCase={setSelectedCase} userType="user" />
+                <CaseList cases={cases} onSelectCase={handleSelectCase} userType="user" />
               </div>
             )}
           </div>
