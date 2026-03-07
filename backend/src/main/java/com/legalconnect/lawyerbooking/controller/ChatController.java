@@ -16,11 +16,12 @@ public class ChatController {
     private MessageService messageService;
 
     @MessageMapping("/chat.send")
-    public void sendMessage(@Payload MessageRequest request) {
+    public void sendMessage(@Payload MessageRequest request, java.security.Principal principal) {
         System.out.println("Received WebSocket message for case " + request.getCaseId() + 
                            " from sender " + request.getSenderId() + " (" + request.getSenderType() + ")");
         
         // Forward request directly to MessageService, which will now use IDs from payload
-        messageService.sendMessage(request);
+        // Also pass the principal for authentication verification
+        messageService.sendMessage(request, principal);
     }
 }

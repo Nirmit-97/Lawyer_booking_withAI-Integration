@@ -80,8 +80,17 @@ function UserDashboard() {
     fetchCases();
   }
 
-  const handleCancelDraft = () => {
+  const handleCancelDraft = async () => {
+    if (draftCaseId) {
+      try {
+        await casesApi.delete(draftCaseId);
+        toast.info('Draft case discarded.');
+      } catch (err) {
+        console.error('Error discarding draft case:', err);
+      }
+    }
     setDraftCaseId(null);
+    fetchCases(); // Refresh list just in case
   }
 
   // Main content switching logic

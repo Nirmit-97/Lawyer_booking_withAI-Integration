@@ -33,7 +33,7 @@ public class MessageService {
     @Autowired
     private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
-    public MessageDTO sendMessage(MessageRequest request) {
+    public MessageDTO sendMessage(MessageRequest request, java.security.Principal principal) {
         // 1. Validate message text
         if (request.getMessageText() == null || request.getMessageText().trim().isEmpty()) {
             throw new BadRequestException("Message text cannot be empty");
@@ -58,8 +58,8 @@ public class MessageService {
             throw new com.legalconnect.lawyerbooking.exception.UnauthorizedException("Sender not found: " + senderType + " ID " + senderId);
         }
 
-        // 3. Strict Access Check (Phase 18)
-        authorizationService.verifyMessageAccess(request.getCaseId());
+        // 3. Strict Access Check (Phase 18) - Now with explicit principal for WebSocket support
+        authorizationService.verifyMessageAccess(request.getCaseId(), principal);
 
         logger.info("Sending WebSocket message from {} {} to {} {} for case {}", 
                    senderType, senderId,

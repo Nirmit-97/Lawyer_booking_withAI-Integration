@@ -14,7 +14,7 @@ const OffersList = ({ caseId, caseStatus, onOfferAccepted }) => {
 
     useEffect(() => {
         fetchOffers();
-    }, [caseId]);
+    }, [caseId, caseStatus]);
 
     const fetchOffers = async () => {
         try {

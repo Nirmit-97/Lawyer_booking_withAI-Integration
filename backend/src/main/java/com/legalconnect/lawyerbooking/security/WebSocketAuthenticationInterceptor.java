@@ -31,41 +31,72 @@ public class WebSocketAuthenticationInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null) return message;
 
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String authToken = accessor.getFirstNativeHeader("Authorization");
-            logger.info("WebSocket CONNECT attempt. Authorization header present: {}", (authToken != null));
+        logger.info("DEBUG Interceptor: Command={}, Dest={}, SessionAttr={}, NativeHeaders={}", 
+                   accessor.getCommand(), 
+                   accessor.getDestination(), 
+                   accessor.getSessionAttributes(), 
+                   accessor.toNativeHeaderMap());
 
-            if (authToken != null && authToken.startsWith("Bearer ")) {
-                String jwt = authToken.substring(7);
-                try {
-                    String username = jwtUtil.extractUsername(jwt);
-                    String role = jwtUtil.extractRole(jwt);
-                    Long userId = jwtUtil.extractUserId(jwt);
+        // 1. Check if already authenticated in this session or message
+        if (accessor.getUser() != null) {
+            return message;
+        }
 
-                    if (username != null && jwtUtil.validateToken(jwt, username)) {
-                        logger.info("WebSocket Authenticated: {} [Role: {}]", username, role);
-                        
-                        UserPrincipal principal = new UserPrincipal(userId, username, role);
-                        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-                        
-                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                principal, null, Collections.singletonList(authority));
-                        
-                        // Set the user in the accessor so it's available in the session
-                        accessor.setUser(auth);
-                        
-                        // Also set in SecurityContextHolder for the current thread
-                        SecurityContextHolder.getContext().setAuthentication(auth);
-                    } else {
-                        logger.warn("WebSocket Auth Failed: Invalid token for user {}", username);
+        // 2. Try to get token from multiple sources
+        String authToken = accessor.getFirstNativeHeader("Authorization");
+        
+        // Fallback to session attributes (populated by HandshakeInterceptor)
+        if (authToken == null && accessor.getSessionAttributes() != null) {
+            authToken = (String) accessor.getSessionAttributes().get("Authorization");
+        }
+
+        if (authToken != null && authToken.startsWith("Bearer ")) {
+            String jwt = authToken.substring(7);
+            try {
+                String username = jwtUtil.extractUsername(jwt);
+                String role = jwtUtil.extractRole(jwt);
+                Long userId = jwtUtil.extractUserId(jwt);
+
+                if (username != null && jwtUtil.validateToken(jwt, username)) {
+                    logger.info("WebSocket Authenticated: {} [Role: {}, Command: {}]", username, role, accessor.getCommand());
+                    
+                    UserPrincipal principal = new UserPrincipal(userId, username, role);
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+                    
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            principal, null, Collections.singletonList(authority));
+                    
+                    // Set the user in the accessor
+                    accessor.setUser(auth);
+                    
+                    // Also store in session attributes for subsequent frames if needed
+                    if (accessor.getSessionAttributes() != null) {
+                        accessor.getSessionAttributes().put("SPRING_SECURITY_AUTHENTICATION", auth);
                     }
-                } catch (Exception e) {
-                    logger.error("WebSocket Auth Error: {}", e.getMessage());
+                    
+                    // Set in SecurityContextHolder for the current thread's interceptor chain
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                } else {
+                    logger.warn("WebSocket Auth Failed: Invalid token for user {}", username);
                 }
-            } else {
-                logger.warn("WebSocket CONNECT without Bearer token");
+            } catch (Exception e) {
+                logger.error("WebSocket Auth Error: {}", e.getMessage());
             }
+        } else if (accessor.getSessionAttributes() != null) {
+            // 3. Final fallback: recover previous authentication from session attributes
+            org.springframework.security.core.Authentication auth = 
+                (org.springframework.security.core.Authentication) accessor.getSessionAttributes().get("SPRING_SECURITY_AUTHENTICATION");
+            if (auth != null) {
+                accessor.setUser(auth);
+            }
+        }
+
+        if (accessor.getUser() == null && !StompCommand.CONNECT.equals(accessor.getCommand()) && 
+            !StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            logger.warn("WebSocket message without authentication - Command: {}, Dest: {}", 
+                       accessor.getCommand(), accessor.getDestination());
         }
 
         return message;

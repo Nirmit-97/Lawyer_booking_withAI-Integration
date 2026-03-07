@@ -17,7 +17,7 @@ public class TextTranslationService {
 
     private static final Logger logger = LoggerFactory.getLogger(TextTranslationService.class);
 
-    @Value("${openai.api.key}")
+    @Value("${app.openai.api.key}")
     private String apiKey;
 
     private static final String CHAT_COMPLETIONS_URL =

@@ -18,6 +18,7 @@ public class CaseDTO {
     private String solution;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long selectedOfferId;
     
     // Additional fields for display purposes
     private String userFullName;
@@ -30,7 +31,7 @@ public class CaseDTO {
     // Parameterized Constructor
     public CaseDTO(Long id, Long userId, Long lawyerId, String caseTitle, CaseType caseType, 
                    CaseStatus caseStatus, String description, String solution, 
-                   LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   LocalDateTime createdAt, LocalDateTime updatedAt, Long selectedOfferId) {
         this.id = id;
         this.userId = userId;
         this.lawyerId = lawyerId;
@@ -41,6 +42,7 @@ public class CaseDTO {
         this.solution = solution;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.selectedOfferId = selectedOfferId;
     }
 
     // Getters and Setters
@@ -146,5 +148,13 @@ public class CaseDTO {
 
     public void setLawyerFullName(String lawyerFullName) {
         this.lawyerFullName = lawyerFullName;
+    }
+
+    public Long getSelectedOfferId() {
+        return selectedOfferId;
+    }
+
+    public void setSelectedOfferId(Long selectedOfferId) {
+        this.selectedOfferId = selectedOfferId;
     }
 }

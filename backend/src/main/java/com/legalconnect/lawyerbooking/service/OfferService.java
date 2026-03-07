@@ -172,6 +172,54 @@ public class OfferService {
         caseRepository.save(caseEntity);
     }
 
+    @Transactional
+    public void cancelOfferAcceptance(Long caseId, Long userId) {
+        Case caseEntity = caseRepository.findById(caseId)
+                .orElseThrow(() -> new RuntimeException("Case not found"));
+
+        if (!caseEntity.getUserId().equals(userId)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (caseEntity.getCaseStatus() != CaseStatus.PAYMENT_PENDING && 
+            caseEntity.getCaseStatus() != CaseStatus.PAYMENT_FAILED) {
+            throw new RuntimeException("Cancellation only allowed for pending or failed payments");
+        }
+
+        Long acceptedOfferId = caseEntity.getSelectedOfferId();
+        if (acceptedOfferId == null) {
+            throw new RuntimeException("No offer is currently accepted for this case");
+        }
+
+        // Reset the accepted offer back to SUBMITTED
+        Offer acceptedOffer = offerRepository.findById(acceptedOfferId)
+                .orElseThrow(() -> new RuntimeException("Accepted offer not found"));
+        acceptedOffer.setStatus(OfferStatus.SUBMITTED);
+        acceptedOffer.setAcceptedAt(null);
+        offerRepository.save(acceptedOffer);
+
+        // Re-activate other rejected offers back to SUBMITTED
+        List<Offer> rejectedOffers = offerRepository.findByCaseIdAndStatus(caseId, OfferStatus.REJECTED);
+        for (Offer rejectedOffer : rejectedOffers) {
+            rejectedOffer.setStatus(OfferStatus.SUBMITTED);
+            rejectedOffer.setRejectedAt(null);
+            offerRepository.save(rejectedOffer);
+        }
+
+        // Reset Case fields
+        caseEntity.setSelectedOfferId(null);
+        caseEntity.setLawyerId(null);
+        
+        // Count active offers to determine next status
+        Long activeCount = offerRepository.countByCaseIdAndStatus(caseId, OfferStatus.SUBMITTED);
+        caseEntity.setOfferCount(activeCount.intValue());
+        
+        // If there are offers, go to UNDER_REVIEW, else PUBLISHED
+        caseEntity.setCaseStatus(activeCount > 0 ? CaseStatus.UNDER_REVIEW : CaseStatus.PUBLISHED);
+        
+        caseRepository.save(caseEntity);
+    }
+
     public List<OfferDTO> getOffersForCase(Long caseId, Long userId) {
         Case caseEntity = caseRepository.findById(caseId)
                 .orElseThrow(() -> new RuntimeException("Case not found"));

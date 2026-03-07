@@ -263,5 +263,21 @@ public class CaseController {
             return ResponseEntity.status(500).build();
         }
     }
+
+    @DeleteMapping("/{caseId}")
+    public ResponseEntity<Void> deleteCase(@PathVariable("caseId") Long caseId) {
+        logger.info("Soft-deleting case ID: {}", caseId);
+        try {
+            authorizationService.verifyCaseAccess(caseId); 
+            caseService.deleteCase(caseId);
+            return ResponseEntity.noContent().build();
+        } catch (UnauthorizedException e) {
+            logger.warn("Access denied for deleting case {}: {}", caseId, e.getMessage());
+            return ResponseEntity.status(403).build();
+        } catch (Exception e) {
+            logger.error("Error deleting case {}: {}", caseId, e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
+    }
 }
 

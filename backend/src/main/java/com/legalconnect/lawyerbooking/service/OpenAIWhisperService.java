@@ -16,7 +16,7 @@ public class OpenAIWhisperService {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAIWhisperService.class);
 
-    @Value("${openai.api.key}")
+    @Value("${app.openai.api.key}")
     private String apiKey;
 
     private static final String TRANSLATE_URL =

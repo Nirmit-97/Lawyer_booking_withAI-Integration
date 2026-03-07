@@ -4,11 +4,7 @@ import { adminApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { PremiumModal } from './FeedbackModal';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import { Bar, Line, Pie } from 'react-chartjs-2';
 
-// Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -19,7 +15,7 @@ const AdminDashboard = () => {
     const [cases, setCases] = useState([]);
     const [appointments, setAppointments] = useState([]);
     const [auditLogs, setAuditLogs] = useState([]);
-    const [analytics, setAnalytics] = useState(null);
+
     const [settings, setSettings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [statsLoading, setStatsLoading] = useState(false);
@@ -63,9 +59,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         if (!user || user.role !== 'admin') return;
 
-        if (activeTab === 'analytics' && !analytics) {
-            fetchAnalytics();
-        } else if (activeTab === 'audit') {
+        if (activeTab === 'audit') {
             fetchAuditLogs(currentPage);
         } else if (activeTab === 'settings' && settings.length === 0) {
             fetchSettings();
@@ -137,18 +131,7 @@ const AdminDashboard = () => {
         }
     };
 
-    const fetchAnalytics = async () => {
-        setLoading(true);
-        try {
-            const response = await adminApi.getAnalytics();
-            setAnalytics(response.data);
-        } catch (error) {
-            console.error('Error fetching analytics:', error);
-            handleError(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+
 
     const fetchAuditLogs = async (page = 0) => {
         setLoading(true);
@@ -317,7 +300,6 @@ const AdminDashboard = () => {
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-        { id: 'analytics', label: 'Analytics', icon: 'analytics' },
         { id: 'audit', label: 'Audit Logs', icon: 'verified_user' },
         { id: 'settings', label: 'System Settings', icon: 'settings' }
     ];
@@ -400,11 +382,7 @@ const AdminDashboard = () => {
                             <span className="material-symbols-outlined scale-110">notifications</span>
                             <div className="absolute top-4 right-4 w-2 h-2 bg-rose-500 rounded-full animate-ping"></div>
                         </button>
-                        <button className="flex items-center gap-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all duration-500 group overflow-hidden relative">
-                            <div className="absolute inset-0 bg-[#1a405b] opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                            <span className="material-symbols-outlined text-lg group-hover:rotate-90 transition-transform duration-500">add_circle</span>
-                            Add New Record
-                        </button>
+
                     </div>
                 </header>
 
@@ -442,60 +420,7 @@ const AdminDashboard = () => {
                     ))}
                 </div>
 
-                {/* Analytics Tab */}
-                {activeTab === 'analytics' && analytics && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* User Growth Chart */}
-                        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">User Growth Trend</h3>
-                            <Line
-                                data={{
-                                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                                    datasets: [{
-                                        label: 'Total Users',
-                                        data: analytics.userGrowth,
-                                        borderColor: '#1a405b',
-                                        backgroundColor: 'rgba(26, 64, 91, 0.1)',
-                                        tension: 0.4
-                                    }]
-                                }}
-                                options={{ responsive: true, maintainAspectRatio: true }}
-                            />
-                        </div>
 
-                        {/* Case Distribution Chart */}
-                        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Case Type Distribution</h3>
-                            <Pie
-                                data={{
-                                    labels: Object.keys(analytics.caseDistribution),
-                                    datasets: [{
-                                        data: Object.values(analytics.caseDistribution),
-                                        backgroundColor: ['#1a405b', '#2563eb', '#7c3aed', '#db2777', '#f59e0b']
-                                    }]
-                                }}
-                                options={{ responsive: true, maintainAspectRatio: true }}
-                            />
-                        </div>
-
-                        {/* Case Status Breakdown */}
-                        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 lg:col-span-2">
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Case Status Breakdown</h3>
-                            <Bar
-                                data={{
-                                    labels: Object.keys(analytics.caseStatus),
-                                    datasets: [{
-                                        label: 'Cases by Status',
-                                        data: Object.values(analytics.caseStatus),
-                                        backgroundColor: '#1a405b'
-                                    }]
-                                }}
-                                options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }}
-                                height={80}
-                            />
-                        </div>
-                    </div>
-                )}
 
                 {/* Audit Logs Tab (Premium Design) */}
                 {activeTab === 'audit' && (

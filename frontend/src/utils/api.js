@@ -117,6 +117,7 @@ export const casesApi = {
     publish: (caseId, visibility) => api.put(`/cases/${caseId}/publish`, { visibility }),
     addFollowUp: (caseId, updateText) => api.post(`/cases/${caseId}/follow-up`, { updateText }),
     update: (caseId, caseData) => api.put(`/cases/${caseId}`, caseData),
+    delete: (id) => api.delete(`/cases/${id}`),
 };
 
 export const lawyersApi = {
@@ -185,6 +186,7 @@ export const offersApi = {
     getMyOffers: () => api.get('/lawyer/offers/my-offers'),
     getForCase: (caseId) => api.get(`/user/cases/${caseId}/offers`),
     accept: (caseId, offerId) => api.post(`/user/cases/${caseId}/offers/${offerId}/accept`),
+    cancelSelection: (caseId) => api.post(`/user/cases/${caseId}/cancel-selection`),
     withdraw: (offerId) => api.delete(`/lawyer/offers/${offerId}`),
 };
 

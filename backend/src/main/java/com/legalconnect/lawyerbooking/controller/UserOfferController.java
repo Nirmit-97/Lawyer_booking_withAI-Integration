@@ -39,4 +39,14 @@ public class UserOfferController {
         offerService.acceptOffer(offerId, userId);
         return ResponseEntity.ok("Offer accepted successfully. Please proceed to payment.");
     }
+
+    @PostMapping("/{caseId}/cancel-selection")
+    public ResponseEntity<String> cancelSelection(
+            @PathVariable("caseId") Long caseId,
+            Authentication authentication) {
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getUserId();
+        offerService.cancelOfferAcceptance(caseId, userId);
+        return ResponseEntity.ok("Offer selection cancelled. Case is back to review status.");
+    }
 }

@@ -520,14 +520,19 @@ public class CaseService {
 
         CaseStatus oldStatus = caseEntity.getCaseStatus();
         caseEntity.setLawyerId(null);
-        caseEntity.setCaseStatus(CaseStatus.PUBLISHED);
+        
+        // If there are existing offers, go back to UNDER_REVIEW, otherwise PUBLISHED
+        CaseStatus nextStatus = (caseEntity.getOfferCount() != null && caseEntity.getOfferCount() > 0) 
+                                ? CaseStatus.UNDER_REVIEW 
+                                : CaseStatus.PUBLISHED;
+        caseEntity.setCaseStatus(nextStatus);
         Case saved = caseRepository.save(caseEntity);
 
         auditLogService.logEvent(
             caseId,
             "CASE_DECLINED",
             oldStatus.name(),
-            CaseStatus.OPEN.name(),
+            nextStatus.name(),
             "Lawyer declined the case assignment",
             currentUser.getUserId(),
             currentUser.getRole()
@@ -547,7 +552,8 @@ public class CaseService {
             caseEntity.getDescription(),
             caseEntity.getSolution(),
             caseEntity.getCreatedAt(),
-            caseEntity.getUpdatedAt()
+            caseEntity.getUpdatedAt(),
+            caseEntity.getSelectedOfferId()
         );
         
         // Populate user full name

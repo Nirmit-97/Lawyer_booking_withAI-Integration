@@ -17,7 +17,7 @@ public class TextMaskingService {
 
     private static final Logger logger = LoggerFactory.getLogger(TextMaskingService.class);
 
-    @Value("${openai.api.key}")
+    @Value("${app.openai.api.key}")
     private String apiKey;
 
     private static final String CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";

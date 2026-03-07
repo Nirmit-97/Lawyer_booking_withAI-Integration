@@ -21,28 +21,31 @@ const RazorpayCheckout = ({ offerId, caseId, onSuccess, onFailure }) => {
         };
     }, []);
 
-    const createPayment = async () => {
+    const fetchPaymentData = async () => {
         try {
             setLoading(true);
-            setError(null);
-
-            const idempotencyKey = `${caseId}-${offerId}-${Date.now()}`;
+            const idempotencyKey = `${caseId}-${offerId}-preview`;
             const response = await paymentsApi.create({ offerId }, idempotencyKey);
-
             setPaymentData(response.data);
-            return response.data;
         } catch (err) {
-            const errorMsg = err.response?.data?.message || 'Failed to create payment';
-            setError(errorMsg);
-            throw new Error(errorMsg);
+            console.error('Error fetching payment preview:', err);
+            setError('Failed to load payment details.');
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        fetchPaymentData();
+    }, [offerId]);
+
     const handlePayment = async () => {
         try {
-            const payment = await createPayment();
+            if (!paymentData) {
+                await fetchPaymentData();
+            }
+            // Use existing paymentData or fetch new if needed
+            const payment = paymentData;
 
             const options = {
                 key: payment.razorpayKeyId || RAZORPAY_KEY_ID,

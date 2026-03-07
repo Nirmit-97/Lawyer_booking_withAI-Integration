@@ -164,6 +164,18 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
         } catch (err) { toast.error('Failed to decline'); }
     };
 
+    const handleCancelSelection = async () => {
+        try {
+            await offersApi.cancelSelection(caseId);
+            toast.success('Offer selection cancelled. Case is back to review status.');
+            setShowPayment(false);
+            fetchCaseDetails();
+        } catch (err) {
+            console.error('Error canceling selection:', err);
+            toast.error('Failed to cancel selection.');
+        }
+    };
+
     const handleUpdateAdvice = async () => {
         if (!solution.trim()) return toast.warning('Advice text required');
         setSavingSolution(true);
@@ -264,7 +276,10 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                 <div className="flex items-center gap-3">
                     <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase border tracking-widest shadow-sm ${status === 'CLOSED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                         status === 'PENDING_APPROVAL' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                            'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                        status === 'PAYMENT_PENDING' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                        status === 'PAYMENT_FAILED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                        status === 'IN_PROGRESS' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
+                        'bg-slate-500/10 text-slate-500 border-slate-500/20'
                         }`}>
                         {status?.replace('_', ' ') || 'OPEN'}
                     </span>
@@ -546,19 +561,58 @@ const CaseDetail = ({ caseId, userType, userId, onBack }) => {
                                         }}
                                     />
 
-                                    {showPayment && caseData.caseStatus === 'PAYMENT_PENDING' && (
-                                        <RazorpayCheckout
-                                            offerId={selectedOffer || caseData.selectedOfferId}
-                                            caseId={caseId}
-                                            onSuccess={() => {
-                                                toast.success('Payment successful!');
-                                                setShowPayment(false);
-                                                fetchCaseDetails();
-                                            }}
-                                            onFailure={(error) => {
-                                                toast.error(`Payment failed: ${error}`);
-                                            }}
-                                        />
+                                    {/* Payment Section */}
+                                    {(status === 'PAYMENT_PENDING' || status === 'PAYMENT_FAILED' || showPayment) && (
+                                        <div className="space-y-6">
+                                            {status === 'PAYMENT_FAILED' && (
+                                                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center gap-4 text-red-500 animate-pulse">
+                                                    <span className="material-symbols-outlined text-3xl">error</span>
+                                                    <div>
+                                                        <p className="font-black uppercase text-xs tracking-widest">Transaction Failed</p>
+                                                        <p className="text-xs font-bold opacity-80">{caseData.paymentFailureReason || 'There was an issue processing your payment. Please try again or pick another lawyer.'}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="bg-white dark:bg-background-dark/50 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                                                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                                    <div className="space-y-2">
+                                                        <h3 className="text-xl font-black text-primary dark:text-white uppercase tracking-tight">Complete Engagement</h3>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">To begin the legal consultation, please finalize the professional fee.</p>
+                                                    </div>
+                                                    <div className="flex gap-3 w-full md:w-auto">
+                                                        <button 
+                                                            onClick={() => setShowPayment(true)}
+                                                            className="flex-1 md:flex-none px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+                                                        >
+                                                            {status === 'PAYMENT_FAILED' ? 'Retry Payment' : 'Pay Professional Fee'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCancelSelection}
+                                                            className="flex-1 md:flex-none px-8 py-4 bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-red-500 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border border-transparent hover:border-red-500/20"
+                                                        >
+                                                            Pick Another Lawyer
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {(showPayment || status === 'PAYMENT_PENDING' || status === 'PAYMENT_FAILED') && (
+                                                <RazorpayCheckout
+                                                    offerId={selectedOffer || caseData.selectedOfferId}
+                                                    caseId={caseId}
+                                                    onSuccess={() => {
+                                                        toast.success('Payment successful!');
+                                                        setShowPayment(false);
+                                                        fetchCaseDetails();
+                                                    }}
+                                                    onFailure={(error) => {
+                                                        toast.error(`Payment failed: ${error}`);
+                                                        fetchCaseDetails();
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                 </>
                             ) : (

@@ -32,10 +32,10 @@ public class MessageController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/send")
-    public ResponseEntity<MessageDTO> sendMessage(@RequestBody MessageRequest request) {
+    public ResponseEntity<MessageDTO> sendMessage(@RequestBody MessageRequest request, java.security.Principal principal) {
         try {
-            // Service will verify access using SecurityContext
-            authorizationService.verifyMessageAccess(request.getCaseId());
+            // Service will verify access using explicit principal
+            authorizationService.verifyMessageAccess(request.getCaseId(), principal);
             
             // Override sender info from payload with actual authenticated user 
             // of course the service should ideally handle this, but for now we ensure 
@@ -43,7 +43,7 @@ public class MessageController {
             // Actually, MessageService already takes MessageRequest. 
             // We'll update MessageService to also use SecurityContext.
             
-            MessageDTO messageDTO = messageService.sendMessage(request);
+            MessageDTO messageDTO = messageService.sendMessage(request, principal);
             return ResponseEntity.ok(messageDTO);
         } catch (UnauthorizedException e) {
             logger.warn("Unauthorized message send attempt: {}", e.getMessage());

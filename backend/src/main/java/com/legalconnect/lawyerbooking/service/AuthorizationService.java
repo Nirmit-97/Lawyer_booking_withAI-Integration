@@ -43,6 +43,12 @@ public class AuthorizationService {
     }
 
     private com.legalconnect.lawyerbooking.security.UserPrincipal getCurrentUserOrDefault(java.security.Principal principal) {
+        if (principal != null) {
+            logger.info("DEBUG Auth: Principal type: {}, name: {}", principal.getClass().getName(), principal.getName());
+        } else {
+            logger.info("DEBUG Auth: Principal is NULL");
+        }
+
         if (principal instanceof com.legalconnect.lawyerbooking.security.UserPrincipal) {
             return (com.legalconnect.lawyerbooking.security.UserPrincipal) principal;
         }
@@ -50,6 +56,9 @@ public class AuthorizationService {
         // Handle STOMP principal which is often a UsernamePasswordAuthenticationToken
         if (principal instanceof org.springframework.security.core.Authentication) {
             Object authPrincipal = ((org.springframework.security.core.Authentication) principal).getPrincipal();
+            if (authPrincipal != null) {
+                logger.info("DEBUG Auth: Authentication principal type: {}", authPrincipal.getClass().getName());
+            }
             if (authPrincipal instanceof com.legalconnect.lawyerbooking.security.UserPrincipal) {
                 return (com.legalconnect.lawyerbooking.security.UserPrincipal) authPrincipal;
             }
@@ -57,9 +66,19 @@ public class AuthorizationService {
 
         org.springframework.security.core.Authentication auth = 
             org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        
+        if (auth != null) {
+            logger.info("DEBUG Auth: SecurityContextHolder auth type: {}, principal type: {}", 
+                       auth.getClass().getName(), 
+                       auth.getPrincipal() != null ? auth.getPrincipal().getClass().getName() : "NULL");
+        }
+
         if (auth != null && auth.getPrincipal() instanceof com.legalconnect.lawyerbooking.security.UserPrincipal) {
             return (com.legalconnect.lawyerbooking.security.UserPrincipal) auth.getPrincipal();
         }
+        
+        logger.warn("DEBUG Auth: No valid authentication found. Principal: {}, SecurityContext Authentication: {}", 
+                   principal, auth);
         throw new com.legalconnect.lawyerbooking.exception.UnauthorizedException("User not authenticated");
     }
 

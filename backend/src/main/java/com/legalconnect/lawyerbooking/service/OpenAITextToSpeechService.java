@@ -16,7 +16,7 @@ public class OpenAITextToSpeechService {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAITextToSpeechService.class);
 
-    @Value("${openai.api.key}")
+    @Value("${app.openai.api.key}")
     private String apiKey;
 
     private static final String TTS_URL = "https://api.openai.com/v1/audio/speech";
@@ -124,15 +124,37 @@ public class OpenAITextToSpeechService {
         // Using tts-1 model (high quality) - you can also use tts-1-hd for even better
         // quality
         ObjectNode requestJson = mapper.createObjectNode();
-        requestJson.put("model", "tts-1");
+        requestJson.put("model", "gpt-4o-mini-tts");
         requestJson.put("input", text);
 
         // Select voice based on gender and language
         String voice = selectVoice(languageCode, gender);
         requestJson.put("voice", voice);
         requestJson.put("response_format", "mp3");
+        requestJson.put("speed", 0.98); // Slightly slower for better clarity and accuracy
+
+        // Add instructions for accent and style as supported by gpt-4o-mini-tts
+        String instructions = buildInstructions(languageCode);
+        if (instructions != null) {
+            requestJson.put("instructions", instructions);
+        }
 
         return mapper.writeValueAsString(requestJson);
+    }
+
+    /**
+     * Builds instructions for gpt-4o-mini-tts to control accent and style
+     * 
+     * @param languageCode The language code
+     * @return Instruction string or null
+     */
+    private String buildInstructions(String languageCode) {
+        if ("gu".equals(languageCode)) {
+            return "Speak with absolute clarity, precise pronunciation, and native Gujarati fluency in a professional Indian style.";
+        } else if ("en".equals(languageCode)) {
+            return "Speak with absolute clarity, precise Indian English pronunciation, and a professional, helpful tone.";
+        }
+        return "Speak with absolute clarity and a professional, formal tone.";
     }
 
     /**
@@ -148,19 +170,19 @@ public class OpenAITextToSpeechService {
             if ("MALE".equalsIgnoreCase(gender)) {
                 return "onyx"; // Deep male voice
             } else if ("FEMALE".equalsIgnoreCase(gender)) {
-                return "shimmer"; // Clear female voice
+                return "coral"; // Warm and natural female voice
             } else {
                 return "nova"; // Neutral, works well for Gujarati
             }
         }
 
-        // For English
+        // For English - using newest high-quality voices
         if ("MALE".equalsIgnoreCase(gender)) {
-            return "onyx"; // Deep male voice
+            return "cedar"; // Premium male voice
         } else if ("FEMALE".equalsIgnoreCase(gender)) {
-            return "shimmer"; // Clear female voice
+            return "coral"; // Warm and natural female voice
         } else {
-            return "alloy"; // Neutral default
+            return "ash"; // Reliable neutral voice for mini-tts
         }
     }
 }

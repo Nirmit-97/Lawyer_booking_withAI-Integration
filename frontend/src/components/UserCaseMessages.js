@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { messagesApi } from '../utils/api';
+import { getToken } from '../utils/auth';
 
 function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, caseStatus, onCaseUpdate }) {
   const isPending = caseStatus?.toUpperCase() === 'PENDING_APPROVAL';
@@ -28,6 +29,9 @@ function UserCaseMessages({ caseId, userId, userType, lawyerId, clientUserId, ca
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
+      connectHeaders: {
+        'Authorization': `Bearer ${getToken()}`
+      },
       onConnect: () => {
         setConnected(true);
         client.subscribe(`/topic/case/${caseId}`, (message) => {

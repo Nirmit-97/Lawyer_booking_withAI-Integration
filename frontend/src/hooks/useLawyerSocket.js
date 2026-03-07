@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { getToken } from '../utils/auth';
 
 const useLawyerSocket = ({
     lawyerId,
@@ -28,6 +29,9 @@ const useLawyerSocket = ({
         const client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
+            connectHeaders: {
+                'Authorization': `Bearer ${getToken()}`
+            },
             onConnect: () => {
                 console.log('WS CONNECT: Connected to request service');
 
