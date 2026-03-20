@@ -3,7 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 
-const API_BASE_URL = 'http://localhost:8080/api/auth';
+const API_BASE_URL = process.env.REACT_APP_API_URL 
+  ? `${process.env.REACT_APP_API_URL}/api/auth` 
+  : 'http://localhost:8080/api/auth';
 
 function UserRegistration() {
   const [formData, setFormData] = useState({
@@ -134,7 +136,7 @@ function UserRegistration() {
       }
     } catch (err) {
       console.error('Registration error:', err);
-      setError('Error connecting to server. Please make sure the backend is running on http://localhost:8080');
+      setError('Error connecting to server. Please ensure your network connection is stable or check the backend configuration.');
     } finally {
       setLoading(false);
     }

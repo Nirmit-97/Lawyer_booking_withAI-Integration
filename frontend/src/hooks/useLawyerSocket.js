@@ -18,10 +18,9 @@ const useLawyerSocket = ({
         }
 
         console.log('WS INIT: Starting connection for lawyer:', lawyerId);
-        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        const host = window.location.hostname;
-        const port = '8080';
-        const socketUrl = `${protocol}//${host}:${port}/ws`;
+        const socketUrl = process.env.REACT_APP_API_URL 
+            ? `${process.env.REACT_APP_API_URL}/ws` 
+            : 'http://localhost:8080/ws';
 
         const socket = new SockJS(socketUrl);
         const client = new Client({
