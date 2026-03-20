@@ -192,10 +192,20 @@ function LawyerDashboard() {
     });
     // -------------------------------------------
 
-    // Fetch initial data based on tab
+    // Fetch initial data based on tab AND Auto-Reload every 10 seconds
     useEffect(() => {
+        // Initial Fetch
         if (activeTab === 'audio') fetchRecords();
         if (activeTab === 'cases' && lawyerId) fetchCases();
+
+        // 10-Second Auto-Reload Polling
+        const intervalId = setInterval(() => {
+            if (activeTab === 'audio') fetchRecords();
+            if (activeTab === 'cases' && lawyerId) fetchCases();
+        }, 10000);
+
+        // Cleanup interval on unmount or dependency change
+        return () => clearInterval(intervalId);
     }, [activeTab, lawyerId, fetchRecords, fetchCases]);
 
     const handleBidOnCase = useCallback((caseId) => {
@@ -543,7 +553,6 @@ function LawyerDashboard() {
                                                             // Removed check for existing audio data as we now fetch on demand
                                                             // But we might want to check if text exists?
                                                             // For now, show button if record exists.
-                                                            const isGujarati = selectedLanguage[record.id] === 'gu';
                                                             // const audioData = ... (Removed)
 
                                                             return (

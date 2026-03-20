@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Booking from './Booking';
 import AppointmentsList from './AppointmentsList';
 import CaseList from './CaseList';
 import CaseDetail from './CaseDetail';
@@ -42,9 +41,16 @@ function UserDashboard() {
     }
   }, [userId]);
 
+  // Fetch cases initially and auto-reload every 10 seconds
   useEffect(() => {
     if (userId) {
       fetchCases();
+      
+      const intervalId = setInterval(() => {
+        fetchCases();
+      }, 10000);
+
+      return () => clearInterval(intervalId);
     }
   }, [userId, fetchCases]);
 
