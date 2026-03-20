@@ -100,6 +100,9 @@ function UserLogin() {
                 required
               />
             </div>
+            <div className="text-right mt-2">
+              <Link to="/forgot-password" className="text-[10px] font-bold text-electric-blue hover:underline uppercase tracking-widest">Forgot Password?</Link>
+            </div>
           </div>
 
           {error && (

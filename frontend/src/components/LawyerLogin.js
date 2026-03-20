@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -99,6 +99,9 @@ function LawyerLogin() {
                 className="w-full pl-12 pr-6 py-4 bg-white/50 border-2 border-transparent rounded-2xl focus:border-electric-blue focus:bg-white transition-all outline-none font-bold text-primary"
                 required
               />
+            </div>
+            <div className="text-right mt-2">
+              <Link to="/forgot-password" className="text-[10px] font-bold text-electric-blue hover:underline uppercase tracking-widest">Forgot Password?</Link>
             </div>
           </div>
 

@@ -11,6 +11,8 @@ public interface LawyerRepository extends JpaRepository<Lawyer, Long>, org.sprin
     Optional<Lawyer> findByUsername(String username);
     Optional<Lawyer> findByUsernameAndPassword(String username, String password);
     boolean existsByUsername(String username);
+    Optional<Lawyer> findFirstByEmail(String email);
+    boolean existsByEmail(String email);
     long countByVerifiedFalse();
 }
 

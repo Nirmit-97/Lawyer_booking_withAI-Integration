@@ -24,6 +24,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Random;
+
+import com.legalconnect.lawyerbooking.dto.ForgotPasswordRequest;
+import com.legalconnect.lawyerbooking.dto.ResetPasswordRequest;
+import com.legalconnect.lawyerbooking.entity.OtpToken;
+import com.legalconnect.lawyerbooking.repository.OtpTokenRepository;
+import com.legalconnect.lawyerbooking.service.EmailService;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,6 +59,12 @@ public class AuthService {
 
     @Autowired
     private PasswordService passwordService;
+
+    @Autowired
+    private OtpTokenRepository otpTokenRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     @Transactional
     public LoginResponse loginUser(LoginRequest request) {
@@ -311,5 +327,74 @@ public class AuthService {
             throw new UnauthorizedException("Refresh token was expired. Please make a new signin request");
         }
         return token;
+    }
+
+    @Transactional
+    public RegistrationResponse forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail();
+        String userType = request.getUserType().toLowerCase();
+
+        if ("lawyer".equals(userType)) {
+            lawyerRepository.findFirstByEmail(email).orElseThrow(() -> new BadRequestException("No lawyer found with this email"));
+        } else if ("user".equals(userType)) {
+            userRepository.findFirstByEmail(email).orElseThrow(() -> new BadRequestException("No user found with this email"));
+        } else {
+            throw new BadRequestException("Invalid user type");
+        }
+
+        // Rate Limit: Prevent sending OTP within 60 seconds
+        Optional<OtpToken> recentToken = otpTokenRepository.findFirstByEmailAndUserTypeOrderByExpiryTimeDesc(email, userType);
+        if (recentToken.isPresent()) {
+            LocalDateTime generatedAt = recentToken.get().getExpiryTime().minusMinutes(10);
+            if (generatedAt.plusSeconds(60).isAfter(LocalDateTime.now())) {
+                throw new BadRequestException("Please wait 60 seconds before requesting another OTP");
+            }
+        }
+
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+        
+        OtpToken otpToken = new OtpToken(email, otp, userType, LocalDateTime.now().plusMinutes(10));
+        otpTokenRepository.save(otpToken);
+        
+        emailService.sendOtpEmail(email, otp);
+        
+        return new RegistrationResponse(true, "OTP sent to your email");
+    }
+
+    @Transactional
+    public RegistrationResponse resetPassword(ResetPasswordRequest request) {
+        String email = request.getEmail();
+        String userType = request.getUserType().toLowerCase();
+        
+        OtpToken otpToken = otpTokenRepository.findByEmailAndOtpAndUserTypeAndUsedFalse(email, request.getOtp(), userType)
+            .orElseThrow(() -> new BadRequestException("Invalid or expired OTP"));
+            
+        if (otpToken.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("OTP has expired");
+        }
+        
+        if (!passwordService.isPasswordStrong(request.getNewPassword())) {
+            throw new BadRequestException(passwordService.getPasswordStrengthErrorMessage());
+        }
+        
+        String encodedPassword = passwordService.hashPassword(request.getNewPassword());
+        
+        if ("lawyer".equals(userType)) {
+            Lawyer lawyer = lawyerRepository.findFirstByEmail(email).orElseThrow(() -> new BadRequestException("Lawyer not found"));
+            lawyer.setPassword(encodedPassword);
+            lawyerRepository.save(lawyer);
+        } else if ("user".equals(userType)) {
+            User user = userRepository.findFirstByEmail(email).orElseThrow(() -> new BadRequestException("User not found"));
+            user.setPassword(encodedPassword);
+            userRepository.save(user);
+        } else {
+            throw new BadRequestException("Invalid user type");
+        }
+        
+        otpToken.setUsed(true);
+        otpTokenRepository.save(otpToken);
+        
+        return new RegistrationResponse(true, "Password reset successfully");
     }
 }

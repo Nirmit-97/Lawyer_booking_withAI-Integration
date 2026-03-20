@@ -10,6 +10,7 @@ import LawyerDashboard from './components/LawyerDashboard';
 import LawyerProfile from './components/LawyerProfile';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import ForgotPassword from './components/ForgotPassword';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -31,6 +32,7 @@ function App() {
             <Route path="/lawyer-login" element={<LawyerLogin />} />
             <Route path="/lawyer-register" element={<LawyerRegistration />} />
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Protected User Routes */}
             <Route path="/user-dashboard" element={

@@ -18,6 +18,7 @@ public class RegistrationRequest {
     @Size(max = 255, message = "Full name must not exceed 255 characters")
     private String fullName;
     
+    @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
     @Size(max = 255, message = "Email must not exceed 255 characters")
     private String email;

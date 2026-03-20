@@ -20,6 +20,7 @@ public class LawyerRegistrationRequest {
     @Size(max = 255, message = "Full name must not exceed 255 characters")
     private String fullName;
     
+    @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
     @Size(max = 255, message = "Email must not exceed 255 characters")
     private String email;
@@ -28,6 +29,7 @@ public class LawyerRegistrationRequest {
     @Size(max = 100, message = "Bar number must not exceed 100 characters")
     private String barNumber;
     
+    @jakarta.validation.constraints.NotEmpty(message = "At least one specialization is required")
     private Set<CaseType> specializations;
 
     public LawyerRegistrationRequest() {}

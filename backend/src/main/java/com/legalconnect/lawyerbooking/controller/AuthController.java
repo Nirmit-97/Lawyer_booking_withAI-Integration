@@ -48,6 +48,16 @@ public class AuthController {
         return ResponseEntity.ok(authService.loginAdmin(request));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<RegistrationResponse> forgotPassword(@Valid @RequestBody com.legalconnect.lawyerbooking.dto.ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<RegistrationResponse> resetPassword(@Valid @RequestBody com.legalconnect.lawyerbooking.dto.ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));

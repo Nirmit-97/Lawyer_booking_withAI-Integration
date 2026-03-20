@@ -57,9 +57,16 @@ function UserDashboard() {
     // Fetch cases to get the newly created draft case
     await fetchCases();
 
+    if (data && data.caseId) {
+      setDraftCaseId(data.caseId);
+      return;
+    }
+
     // Find the most recent draft case (should be the one just created)
     const response = await casesApi.getByUser(userId);
-    const draftCase = response.data.find(c => c.caseStatus === 'DRAFT');
+    // Sort by ID descending to get the newest first
+    const sortedCases = [...response.data].sort((a, b) => b.id - a.id);
+    const draftCase = sortedCases.find(c => c.caseStatus === 'DRAFT');
 
     if (draftCase) {
       setDraftCaseId(draftCase.id);
