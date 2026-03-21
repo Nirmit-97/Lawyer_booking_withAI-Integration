@@ -6,36 +6,28 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 @Configuration
 public class CorsConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        // Allow credentials (like cookies or Authorization headers)
-        config.setAllowCredentials(true);
-        
-        // Define exact allowed origins properly instead of using wildcard "*"
-        config.setAllowedOrigins(Arrays.asList(
-                "https://het-full--project.d11nz5qtychasv.amplifyapp.com",
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Allow ONLY the ngrok origin as requested (and optionally localhost for Dev)
+        configuration.setAllowedOrigins(List.of(
+                "https://gunnar-evasional-iconically.ngrok-free.dev",
                 "http://localhost:3000"
         ));
         
-        // Allow all required HTTP headers
-        config.setAllowedHeaders(Collections.singletonList("*"));
-        
-        // Allow all HTTP methods
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        
-        // Cache preflight requests for 1 hour
-        config.setMaxAge(3600L);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L); // Cache preflight requests for 1 hour
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // Register the configuration for all API endpoints globally
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/**", configuration);
         
         return source;
     }
