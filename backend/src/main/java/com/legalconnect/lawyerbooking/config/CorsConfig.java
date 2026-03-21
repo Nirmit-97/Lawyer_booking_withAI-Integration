@@ -3,41 +3,31 @@ package com.legalconnect.lawyerbooking.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 @Configuration
 public class CorsConfig {
 
     @Bean
-    public CorsFilter corsFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // Allow credentials (like cookies or Authorization headers)
         config.setAllowCredentials(true);
         
         // Define exact allowed origins properly instead of using wildcard "*"
         config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://127.0.0.1:3000",
-                "https://lawyer-booking-with-ai-integration.vercel.app"
+                "https://het-full--project.d11nz5qtychasv.amplifyapp.com",
+                "http://localhost:3000"
         ));
         
         // Allow all required HTTP headers
-        config.setAllowedHeaders(Arrays.asList(
-                "Origin", 
-                "Content-Type", 
-                "Accept", 
-                "Authorization", 
-                "X-Admin-Id", 
-                "X-Requested-With", 
-                "Access-Control-Request-Method", 
-                "Access-Control-Request-Headers"
-        ));
+        config.setAllowedHeaders(Collections.singletonList("*"));
         
-        // Allow necessary HTTP methods
+        // Allow all HTTP methods
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         
         // Cache preflight requests for 1 hour
@@ -47,6 +37,6 @@ public class CorsConfig {
         // Register the configuration for all API endpoints globally
         source.registerCorsConfiguration("/**", config);
         
-        return new CorsFilter(source);
+        return source;
     }
 }

@@ -35,7 +35,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOrigins(
+                        "https://het-full--project.d11nz5qtychasv.amplifyapp.com",
+                        "http://localhost:3000"
+                )
                 .withSockJS();
     }
 
